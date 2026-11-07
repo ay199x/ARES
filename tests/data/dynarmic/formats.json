@@ -1,0 +1,21 @@
+{
+  "program": "formats.s",
+  "instructions": 75,
+  "formats": {
+    "fmt_dp_reg": 14,
+    "fmt_dp_imm": 20,
+    "fmt_ls_imm": 22,
+    "fmt_ls_reg": 2,
+    "fmt_branch": 7,
+    "fmt_mul": 3,
+    "fmt_lsm": 4,
+    "fmt_svc": 3
+  },
+  "classes": {
+    "alu": 37,
+    "branch": 7,
+    "memory": 4,
+    "reg_transfer": 20,
+    "cond_load_other": 7
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "program": "leaf.s",
+  "instructions": 13,
+  "formats": {
+    "fmt_dp_reg": 0,
+    "fmt_dp_imm": 4,
+    "fmt_ls_imm": 0,
+    "fmt_ls_reg": 0,
+    "fmt_branch": 4,
+    "fmt_mul": 0,
+    "fmt_lsm": 0,
+    "fmt_svc": 5
+  },
+  "classes": {
+    "alu": 4,
+    "branch": 4,
+    "memory": 0,
+    "reg_transfer": 0,
+    "cond_load_other": 5
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "Arm GNU Toolchain",
+  "target": "arm-none-eabi",
+  "version": "14.2.Rel1",
+  "release_page": "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads",
+  "source": {
+    "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/srcrel/arm-gnu-toolchain-src-snapshot-14.2.rel1.tar.xz",
+    "sha256": "e6405f20f8a817a50d92dbf7974d0ee77708dfdf9e79900a59c5d343b464ef9c",
+    "size": 311500280
+  },
+  "platforms": {
+    "windows-x64": {
+      "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi.zip",
+      "sha256": "f074615953f76036e9a51b87f6577fdb4ed8e77d3322a6f68214e92e7859888f",
+      "size": 312299563,
+      "files": [
+        "bin/arm-none-eabi-as.exe",
+        "bin/arm-none-eabi-ld.exe"
+      ]
+    },
+    "macos-arm64": {
+      "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-darwin-arm64-arm-none-eabi.tar.xz",
+      "sha256": "c7c78ffab9bebfce91d99d3c24da6bf4b81c01e16cf551eb2ff9f25b9e0a3818",
+      "size": 134812148,
+      "files": [
+        "bin/arm-none-eabi-as",
+        "bin/arm-none-eabi-ld"
+      ]
+    },
+    "macos-x86_64": {
+      "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-darwin-x86_64-arm-none-eabi.tar.xz",
+      "sha256": "2d9e717dd4f7751d18936ae1365d25916534105ebcb7583039eff1092b824505",
+      "size": 145118692,
+      "files": [
+        "bin/arm-none-eabi-as",
+        "bin/arm-none-eabi-ld"
+      ]
+    },
+    "linux-x86_64": {
+      "url": "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz",
+      "sha256": "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823",
+      "size": 149739784,
+      "files": [
+        "bin/arm-none-eabi-as",
+        "bin/arm-none-eabi-ld"
+      ]
+    }
+  },
+  "engine_source": {
+    "url": "https://files.pythonhosted.org/packages/b2/1b/b4248aa8422e86de690cf8e85cf8feae4c33405a097d1ebe71570bdaa6f5/unicorn-2.1.4.tar.gz",
+    "sha256": "00567a70e323f749b419cd86bee4f9115beab7ebba32194581c090cbb7c59cff",
+    "size": 2900334
+  }
+}

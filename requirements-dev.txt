@@ -1,0 +1,6 @@
+# Development, test and build dependencies (exact versions).
+-r requirements.txt
+pytest==9.2.0
+pytest-xdist==3.8.0
+pyinstaller==6.22.3
+pillow==13.0.0

@@ -1,0 +1,21 @@
+{
+  "program": "count_dec.s",
+  "instructions": 114,
+  "formats": {
+    "fmt_dp_reg": 16,
+    "fmt_dp_imm": 49,
+    "fmt_ls_imm": 0,
+    "fmt_ls_reg": 0,
+    "fmt_branch": 16,
+    "fmt_mul": 0,
+    "fmt_lsm": 0,
+    "fmt_svc": 33
+  },
+  "classes": {
+    "alu": 65,
+    "branch": 16,
+    "memory": 0,
+    "reg_transfer": 0,
+    "cond_load_other": 33
+  }
+}

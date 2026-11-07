@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Unicorn's Windows build raises and handles an access violation inside
+# mem_map; the faulthandler plugin reports such handled exceptions as noise.
+# Capturing by file descriptor closes handles that Tcl's standard channels still hold on Windows,
+# and Tcl will not open a file that gets such a handle again: a new Tk root then cannot read
+# its own library files ("couldn't read file ...icons.tcl").
+addopts = "-p no:faulthandler --capture=sys"
+markers = ["serial: measures time, so it runs alone and not beside other tests"]

@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (c) 2026 The ARES Project
+# Runs the tests and builds the five packages of a release on clean machines, and tries them there.
+# It runs only when started by hand, and keeps them as the run's files. Started on a tag such as
+# v1.0 with publish ticked, it also publishes them, with the source of the GNU assembler and linker
+# and of Unicorn, as a release.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a release (on a tag such as v1.0)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, os: windows-2025, python: "3.11.2", tag: windows-x64, files: "dist/ARES.exe dist/ARES-windows.zip" }
+          - { name: macOS Apple Silicon, os: macos-15, python: "3.11.2", tag: macos-arm64, files: dist/ARES-macos-arm64.zip }
+          - { name: macOS Intel, os: macos-15-intel, python: "3.11.2", tag: macos-x86_64, files: dist/ARES-macos-x86_64.zip }
+          - { name: Linux, os: ubuntu-22.04, python: "3.12", tag: linux-x86_64, files: dist/ARES-linux-x86_64.tar.gz }
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Linux needs a display and the fonts for the windows
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb openbox xdotool fonts-liberation
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python tools/build.py --skip-tests
+      - name: Try the packages
+        if: runner.os != 'Linux'
+        run: python tools/check_package.py
+      - name: Try the packages, on a virtual display
+        if: runner.os == 'Linux'
+        run: >-
+          xvfb-run -a -s "-screen 0 1600x1000x24 -dpi 96" sh -c
+          'openbox & sleep 2; python tools/check_package.py'
+      - name: Keep what the packages showed
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: check-${{ matrix.tag }}
+          path: |
+            build/check/*.json
+            build/check/pictures/
+          if-no-files-found: warn
+      - name: Name the files to keep
+        shell: bash
+        run: |
+          mkdir out
+          for file in ${{ matrix.files }}; do cp "$file" out/; done
+      - uses: actions/upload-artifact@v5
+        with:
+          name: package-${{ matrix.tag }}
+          path: out/
+          if-no-files-found: error
+
+  publish:
+    if: inputs.publish && startsWith(github.ref, 'refs/tags/v')
+    needs: [tests, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v6
+        with:
+          path: out
+          pattern: package-*
+          merge-multiple: true
+      - name: Fetch the source of the GNU assembler and linker, and of Unicorn
+        run: |
+          for key in source engine_source; do
+            url=$(python3 -c "import json; print(json.load(open('tools/toolchain.json'))['$key'][\"url\"])")
+            sum=$(python3 -c "import json; print(json.load(open('tools/toolchain.json'))['$key'][\"sha256\"])")
+            curl -fsSL -o "out/$(basename "$url")" "$url"
+            echo "$sum  out/$(basename "$url")" | sha256sum --check
+          done
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/* --title "ARES ${GITHUB_REF_NAME#v}" --generate-notes

@@ -1,0 +1,21 @@
+{
+  "program": "jtag.s",
+  "instructions": 19,
+  "formats": {
+    "fmt_dp_reg": 0,
+    "fmt_dp_imm": 4,
+    "fmt_ls_imm": 6,
+    "fmt_ls_reg": 0,
+    "fmt_branch": 3,
+    "fmt_mul": 0,
+    "fmt_lsm": 6,
+    "fmt_svc": 0
+  },
+  "classes": {
+    "alu": 4,
+    "branch": 3,
+    "memory": 3,
+    "reg_transfer": 9,
+    "cond_load_other": 0
+  }
+}

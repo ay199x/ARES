@@ -1,0 +1,21 @@
+{
+  "program": "sum_dec.s",
+  "instructions": 10,
+  "formats": {
+    "fmt_dp_reg": 2,
+    "fmt_dp_imm": 2,
+    "fmt_ls_imm": 2,
+    "fmt_ls_reg": 0,
+    "fmt_branch": 0,
+    "fmt_mul": 0,
+    "fmt_lsm": 0,
+    "fmt_svc": 4
+  },
+  "classes": {
+    "alu": 4,
+    "branch": 0,
+    "memory": 0,
+    "reg_transfer": 2,
+    "cond_load_other": 4
+  }
+}

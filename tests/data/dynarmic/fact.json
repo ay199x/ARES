@@ -1,0 +1,21 @@
+{
+  "program": "fact.s",
+  "instructions": 48,
+  "formats": {
+    "fmt_dp_reg": 5,
+    "fmt_dp_imm": 16,
+    "fmt_ls_imm": 0,
+    "fmt_ls_reg": 0,
+    "fmt_branch": 10,
+    "fmt_mul": 4,
+    "fmt_lsm": 10,
+    "fmt_svc": 3
+  },
+  "classes": {
+    "alu": 25,
+    "branch": 10,
+    "memory": 0,
+    "reg_transfer": 10,
+    "cond_load_other": 3
+  }
+}

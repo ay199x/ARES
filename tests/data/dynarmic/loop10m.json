@@ -1,0 +1,21 @@
+{
+  "program": "loop10m.s",
+  "instructions": 10000009,
+  "formats": {
+    "fmt_dp_reg": 2000000,
+    "fmt_dp_imm": 2000002,
+    "fmt_ls_imm": 4000004,
+    "fmt_ls_reg": 0,
+    "fmt_branch": 2000000,
+    "fmt_mul": 0,
+    "fmt_lsm": 0,
+    "fmt_svc": 3
+  },
+  "classes": {
+    "alu": 4000002,
+    "branch": 2000000,
+    "memory": 0,
+    "reg_transfer": 4000004,
+    "cond_load_other": 3
+  }
+}

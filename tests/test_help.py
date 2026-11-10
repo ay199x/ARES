@@ -359,6 +359,16 @@ def surnames():
             *(advisor.split(",")[0].split()[-1] for advisor in credits.ADVISORS)]
 
 
+def test_the_credits_are_lines_with_the_advisors_as_bullets():
+    for title in ("Intro", "Acknowledgements"):
+        blocks = blocks_of(title)
+        start = blocks.index(Block(HEADING, "Credits"))
+        assert blocks[start + 1:start + 6] == [
+            Block(PARAGRAPH, credits.CREATED_BY), Block(PARAGRAPH, credits.ADVISORS_HEADING),
+            *(Block(BULLET, advisor) for advisor in credits.ADVISORS),
+            Block(PARAGRAPH, credits.FIRST_USED)]
+
+
 def test_the_two_advisors_stand_under_one_heading_in_order():
     assert credits.CREDITS[1:4] == ("Advisors:", *credits.ADVISORS)
     assert "Pegasus Professor" in credits.ADVISORS[0]

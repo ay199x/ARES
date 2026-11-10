@@ -136,9 +136,16 @@ def test_the_intro_shows_the_story_and_the_credits(app):
 def test_the_acknowledgements_show_the_credits(app):
     app.run("help")
     app.help_window.select("Acknowledgements")
-    text = words(app.help_window.pages["Acknowledgements"])
+    page = app.help_window.pages["Acknowledgements"]
+    text = words(page)
     for credit in credits.CREDITS:
         assert credit in text
+    # Plain lines, but for the two advisors, which are bullets.
+    raw = page.text.get("1.0", "end")
+    for advisor in credits.ADVISORS:
+        assert f"\u2022\t{advisor}" in raw
+    for line in (credits.CREATED_BY, credits.ADVISORS_HEADING, credits.FIRST_USED):
+        assert f"\n{line}\n" in raw and f"\u2022\t{line}" not in raw
 
 
 def test_the_license_tab_shows_both_files_in_the_font_of_programs(app):
@@ -812,9 +819,30 @@ def test_the_about_box_says_what_ares_is(app):
     dialog = app.about_dialog
     assert dialog.window.title() == "About ARES"
     assert dialog.lines == (
-        f"ARES {__version__}", APP_FULL_NAME, "", *credits.CREDITS, "", about.LICENCE,
+        f"ARES {__version__}", APP_FULL_NAME, "", *about.credit_lines(), "", about.LICENCE,
         "Toolbar and menu icons drawn for ARES")
+    assert about.credit_lines() == (
+        credits.CREATED_BY, credits.ADVISORS_HEADING,
+        *(about.BULLET + advisor for advisor in credits.ADVISORS), credits.FIRST_USED)
     assert "GPL-2.0-or-later" in about.LICENCE and "License tab" in about.LICENCE
+
+
+def test_the_about_box_wraps_an_advisor_under_the_words_not_under_the_bullet(app):
+    app.run("about")
+    window = app.about_dialog.window
+
+    def labels(widget):
+        found = [widget] if widget.winfo_class() == "TLabel" else []
+        return found + [label for child in widget.winfo_children() for label in labels(child)]
+    texts = {str(label.cget("text")): label for label in labels(window)}
+    for advisor in credits.ADVISORS:
+        words = texts[advisor]                  # the words alone, beside their mark
+        marks = [str(child.cget("text")) for child in words.master.winfo_children()
+                 if child is not words]
+        assert marks == ["•"]
+        assert int(str(words.cget("wraplength"))) > 0
+    for line in (credits.CREATED_BY, credits.ADVISORS_HEADING, credits.FIRST_USED):
+        assert line in texts                    # a plain line, no mark
 
 
 def test_the_about_box_has_one_button(app):

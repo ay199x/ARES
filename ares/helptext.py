@@ -172,7 +172,7 @@ def keyboard_page(menus, label_of):
 def intro_page():
     """The Intro page: who made ARES and why, then how to start."""
     first = [f"# {APP_NAME} - {APP_FULL_NAME}", f"# Version {__version__}", *credits.MOTIVATION,
-             credits.FUN_FACT, "## Credits", *credits.CREDITS]
+             credits.FUN_FACT, "## Credits", credits.credits_markup()]
     return "\n\n".join(first) + "\n\n" + INTRO
 
 
@@ -189,7 +189,7 @@ def limits_page():
 
 def acknowledgements_page():
     """The Acknowledgements page: the credits, then the programs and work ARES stands on."""
-    return ("## Credits\n\n" + "\n\n".join(credits.CREDITS) + "\n\n" + ACKNOWLEDGEMENTS
+    return ("## Credits\n\n" + credits.credits_markup() + "\n\n" + ACKNOWLEDGEMENTS
             + "\n" + credits.TEXTBOOK + "\n")
 
 
@@ -236,10 +236,10 @@ _start` and `.text`, and instructions and registers are written in capitals.
 
 ## Where to read on
 
-The ARM tab of this window is about the language: every instruction, the directives, the system
-calls, the registers and the memory. The other tabs here are about the program: IDE for the
-window, Debugging for going through a program, Settings, Tools, Keyboard shortcuts, and Limits for
-what ARES does not do.
+The ARM tab of the Help window is about the language: every instruction, the directives, the
+system calls, the registers and the memory. Its ARES tab is about the program: IDE for the window,
+Debugging for going through a program, Settings, Tools, Keyboard shortcuts, and Limits for what
+ARES does not do.
 
 ## Example programs
 
@@ -659,7 +659,7 @@ Without it, ARES Messages warns once for each of their addresses that a program 
 
 TOOLS_INTRO = """\
 The Tools menu holds tools that show what a program does, each in a window of its own. Choose one
-on the left to read about it.
+in the list to read about it.
 
 ## What every tool has
 

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARES Help - System calls</title>
+<meta name="description" content="The system calls of ARES: SVC #N, the full table of services, their arguments and results.">
+<link rel="canonical" href="https://ay199x.github.io/ARES/help/syscalls.html">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="../images/icon-192.png">
+<link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARES">
+<meta property="og:title" content="ARES Help - System calls">
+<meta property="og:description" content="The system calls of ARES: SVC #N, the full table of services, their arguments and results.">
+<meta property="og:url" content="https://ay199x.github.io/ARES/help/syscalls.html">
+<meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The helmet of Ares beside the ARES window">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body class="help">
+<nav class="links" aria-label="Help &amp; Info">
+<a href="intro.html"><i>Intro</i></a>
+<a href="settings.html"><i>Settings</i></a>
+<a href="syscalls.html" aria-current="page"><i>Syscalls</i></a>
+<a href="ide.html"><i>IDE</i></a>
+<a href="debugging.html"><i>Debugging</i></a>
+<a href="tools.html"><i>Tools</i></a>
+<a href="shortcuts.html"><i>Keyboard shortcuts</i></a>
+<a href="history.html"><i>History</i></a>
+<a href="limits.html"><i>Limitations</i></a>
+<a href="acknowledgements.html"><i>Acknowledgements</i></a>
+<a class="home" href="../index.html"><i>ARES&nbsp;home</i></a>
+</nav>
+<header class="title">
+<p class="name">ARES - ARM Educational Simulator</p>
+<p>Release 1.0</p>
+<p>November 2026</p>
+<h1>System calls</h1>
+</header>
+<main>
+<p>A program asks ARES for a service with <code>SVC #N</code>, where N is the service&#x27;s number. Arguments go in R0 to R3, floating-point ones in S0 or D0, and results come back in the registers listed. Every other register keeps its value, and so do the flags.</p>
+<div class="table"><table>
+<tr><th>N</th><th>Service</th><th>Arguments</th><th>Result</th></tr>
+<tr><td>1</td><td>print integer</td><td>R0 = integer</td><td>-</td></tr>
+<tr><td>2</td><td>print float</td><td>S0 = float</td><td>-</td></tr>
+<tr><td>3</td><td>print double</td><td>D0 = double</td><td>-</td></tr>
+<tr><td>4</td><td>print string</td><td>R0 = address of zero-terminated string</td><td>-</td></tr>
+<tr><td>5</td><td>read integer</td><td>-</td><td>R0 = integer</td></tr>
+<tr><td>6</td><td>read float</td><td>-</td><td>S0 = float</td></tr>
+<tr><td>7</td><td>read double</td><td>-</td><td>D0 = double</td></tr>
+<tr><td>8</td><td>read string</td><td>R0 = buffer address, R1 = maximum length</td><td>-</td></tr>
+<tr><td>9</td><td>allocate heap memory</td><td>R0 = number of bytes</td><td>R0 = address</td></tr>
+<tr><td>10</td><td>exit</td><td>-</td><td>-</td></tr>
+<tr><td>11</td><td>print character</td><td>R0 = character</td><td>-</td></tr>
+<tr><td>12</td><td>read character</td><td>-</td><td>R0 = character</td></tr>
+<tr><td>13</td><td>open file</td><td>R0 = file name, R1 = flags (0 read, 1 write, 9 append), R2 = mode (ignored)</td><td>R0 = file descriptor, negative on error</td></tr>
+<tr><td>14</td><td>read from file</td><td>R0 = file descriptor, R1 = buffer address, R2 = maximum length</td><td>R0 = number of bytes read, 0 at end of file, negative on error</td></tr>
+<tr><td>15</td><td>write to file</td><td>R0 = file descriptor, R1 = buffer address, R2 = number of bytes</td><td>R0 = number of bytes written, negative on error</td></tr>
+<tr><td>16</td><td>close file</td><td>R0 = file descriptor</td><td>-</td></tr>
+<tr><td>17</td><td>exit with value</td><td>R0 = value</td><td>-</td></tr>
+<tr><td>30</td><td>system time</td><td>-</td><td>R0 = low 32 bits, R1 = high 32 bits (milliseconds)</td></tr>
+<tr><td>31</td><td>MIDI out</td><td>R0 = pitch, R1 = duration (ms), R2 = instrument, R3 = volume</td><td>-</td></tr>
+<tr><td>32</td><td>sleep</td><td>R0 = milliseconds</td><td>-</td></tr>
+<tr><td>33</td><td>MIDI out and wait</td><td>R0 = pitch, R1 = duration (ms), R2 = instrument, R3 = volume</td><td>-</td></tr>
+<tr><td>34</td><td>print hexadecimal</td><td>R0 = integer</td><td>-</td></tr>
+<tr><td>35</td><td>print binary</td><td>R0 = integer</td><td>-</td></tr>
+<tr><td>36</td><td>print unsigned</td><td>R0 = integer</td><td>-</td></tr>
+<tr><td>40</td><td>set random seed</td><td>R0 = generator number, R1 = seed</td><td>-</td></tr>
+<tr><td>41</td><td>random integer</td><td>R0 = generator number</td><td>R0 = random integer</td></tr>
+<tr><td>42</td><td>random integer below a bound</td><td>R0 = generator number, R1 = bound</td><td>R0 = random integer from 0 to bound-1</td></tr>
+<tr><td>43</td><td>random float</td><td>R0 = generator number</td><td>S0 = random float from 0 up to 1</td></tr>
+<tr><td>44</td><td>random double</td><td>R0 = generator number</td><td>D0 = random double from 0 up to 1</td></tr>
+<tr><td>50</td><td>confirm dialog</td><td>R0 = message</td><td>R0 = 0 yes, 1 no, 2 cancel</td></tr>
+<tr><td>51</td><td>input dialog, integer</td><td>R0 = message</td><td>R0 = integer, R1 = status</td></tr>
+<tr><td>52</td><td>input dialog, float</td><td>R0 = message</td><td>S0 = float, R1 = status</td></tr>
+<tr><td>53</td><td>input dialog, double</td><td>R0 = message</td><td>D0 = double, R1 = status</td></tr>
+<tr><td>54</td><td>input dialog, string</td><td>R0 = message, R1 = buffer address, R2 = maximum length</td><td>R1 = status</td></tr>
+<tr><td>55</td><td>message dialog</td><td>R0 = message, R1 = type (0 error, 1 information, 2 warning, 3 question)</td><td>-</td></tr>
+<tr><td>56</td><td>message dialog, integer</td><td>R0 = message, R1 = integer</td><td>-</td></tr>
+<tr><td>57</td><td>message dialog, float</td><td>R0 = message, S0 = float</td><td>-</td></tr>
+<tr><td>58</td><td>message dialog, double</td><td>R0 = message, D0 = double</td><td>-</td></tr>
+<tr><td>59</td><td>message dialog, string</td><td>R0 = message, R1 = address of string</td><td>-</td></tr>
+</table></div>
+<h2>Notes</h2>
+<ul>
+<li>Output formats: 1 prints a signed number, 36 an unsigned one, 34 <code>0x</code> and eight lowercase hexadecimal digits, and 35 thirty-two binary digits.</li>
+<li>8 reads at most R1 - 1 characters, keeps the end of the line if it fits, and ends with a zero byte.</li>
+<li>File descriptors 0, 1 and 2 are Run I/O&#x27;s input, output and error output.</li>
+<li>Status of the input dialogs: 0 OK, -1 not a number, -2 cancelled, -3 OK with no input; 54 gives -4 when the text was cut to fit.</li>
+<li>31 and 33 play no sound: ARES has no synthesizer. 33 still waits for the note&#x27;s duration.</li>
+<li>An unknown number ends the program with a runtime error.</li>
+</ul>
+</main>
+</body>
+</html>

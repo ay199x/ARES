@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARES Help - Limitations</title>
+<meta name="description" content="What ARES does not do, and the instructions its lists leave out.">
+<link rel="canonical" href="https://ay199x.github.io/ARES/help/limits.html">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="../images/icon-192.png">
+<link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARES">
+<meta property="og:title" content="ARES Help - Limitations">
+<meta property="og:description" content="What ARES does not do, and the instructions its lists leave out.">
+<meta property="og:url" content="https://ay199x.github.io/ARES/help/limits.html">
+<meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The helmet of Ares beside the ARES window">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body class="help">
+<nav class="links" aria-label="Help &amp; Info">
+<a href="intro.html"><i>Intro</i></a>
+<a href="settings.html"><i>Settings</i></a>
+<a href="syscalls.html"><i>Syscalls</i></a>
+<a href="ide.html"><i>IDE</i></a>
+<a href="debugging.html"><i>Debugging</i></a>
+<a href="tools.html"><i>Tools</i></a>
+<a href="shortcuts.html"><i>Keyboard shortcuts</i></a>
+<a href="history.html"><i>History</i></a>
+<a href="limits.html" aria-current="page"><i>Limitations</i></a>
+<a href="acknowledgements.html"><i>Acknowledgements</i></a>
+<a class="home" href="../index.html"><i>ARES&nbsp;home</i></a>
+</nav>
+<header class="title">
+<p class="name">ARES - ARM Educational Simulator</p>
+<p>Release 1.0</p>
+<p>November 2026</p>
+<h1>Limitations</h1>
+</header>
+<main>
+<p>ARES is made for learning, and simulates what a program needs to run. This is what it does not do.</p>
+<h2>The computer</h2>
+<ul>
+<li>ARES is made for ARM state. Thumb code is not supported: it can run for a while, but <code>SVC</code> does not work in it, and <code>BLX label</code> to Thumb code at the end of the program leaves the program.</li>
+<li>There are no interrupts and no timers. Nothing is ever taken as an exception: <code>SVC</code> goes to ARES&#x27;s own services, and an undefined instruction or an access to an address with no memory ends the program with a runtime error, with no exception vector and no handler.</li>
+<li>There is no memory management unit and no cache: the Data Cache Simulator is a model that counts.</li>
+<li>ARES counts instructions, not time: there are no cycles.</li>
+<li>The Cortex-A9 has no divide instruction: use a loop, or floating point.</li>
+<li>Only these coprocessor instructions work: those of the floating-point unit, coprocessors 10 and 11, and <code>MRC</code> and <code>MCR</code> on a register of 14, the debug unit, or 15, the system&#x27;s, that can be read or written that way. Any other, such as <code>CDP</code> or <code>MRRC</code> on 14 or 15, is an undefined instruction: unless its condition fails, it ends the program with a runtime error.</li>
+<li>The only device without a tool is the JTAG UART. The other DE1-SoC devices ignore writes and read as 0, and ARES Messages warns once for each address that a program uses; the Digital Lab Sim brings the red LEDs, the seven-segment displays, the switches and the push buttons to life.</li>
+<li>Memory is what the Memory and devices tab lists: 1 GB of DDR3 and 64 KB of on-chip memory.</li>
+</ul>
+<h2>The program and the window</h2>
+<ul>
+<li>A program is one file: Assemble takes the file on top and links nothing else with it.</li>
+<li>Backstep goes back at most 2,000 steps.</li>
+<li>System calls 31 and 33 play no sound.</li>
+<li>The numbers of the system calls are those of the Syscalls tab; any other number ends the program with a runtime error.</li>
+</ul>
+<h2>The tools</h2>
+<ul>
+<li>A connected tool can make a run at full speed take longer, as its page says.</li>
+<li>BHT Simulator: only conditional branches are predicted, not B without a condition, BL, BX or other instructions that change PC.</li>
+<li>Digital Lab Sim: the program cannot write the switches, and the interrupt mask is only stored.</li>
+<li>Dynamic Instruction Counter: it counts instructions and has no cycles.</li>
+<li>Keyboard and Display MMIO Simulator: text printed by system calls shows only in Run I/O.</li>
+<li>Memory Reference Visualization: memory that a system call reads or writes for the program does not count.</li>
+</ul>
+<h2>Instructions on neither list</h2>
+<p>Every instruction ARES accepts has a row on the Basic or the Extended list, except these:</p>
+<ul>
+<li>The floating-point instructions under the names they had before the V names. Each does the same as a V instruction on the Basic list, and ARES takes them in old programs. FABSD, FABSS, FADDD, FADDS, FCMPD, FCMPED, FCMPES, FCMPEZD, FCMPEZS, FCMPS, FCMPZD, FCMPZS, FCONSTD, FCONSTS, FCPYD, FCPYS, FCVTDS, FCVTSD, FDIVD, FDIVS, FLDD, FLDMDBD, FLDMDBS, FLDMDBX, FLDMEAD, FLDMEAS, FLDMEAX, FLDMFDD, FLDMFDS, FLDMFDX, FLDMIAD, FLDMIAS, FLDMIAX, FLDS, FMACD, FMACS, FMDHR, FMDLR, FMDRR, FMRDH, FMRDL, FMRRD, FMRRS, FMRS, FMRX, FMSCD, FMSCS, FMSR, FMSRR, FMSTAT, FMULD, FMULS, FMXR, FNEGD, FNEGS, FNMACD, FNMACS, FNMSCD, FNMSCS, FNMULD, FNMULS, FSHTOD, FSHTOS, FSITOD, FSITOS, FSLTOD, FSLTOS, FSQRTD, FSQRTS, FSTD, FSTMDBD, FSTMDBS, FSTMDBX, FSTMEAD, FSTMEAS, FSTMEAX, FSTMFDD, FSTMFDS, FSTMFDX, FSTMIAD, FSTMIAS, FSTMIAX, FSTS, FSUBD, FSUBS, FTOSHD, FTOSHS, FTOSID, FTOSIS, FTOSIZD, FTOSIZS, FTOSLD, FTOSLS, FTOUHD, FTOUHS, FTOUID, FTOUIS, FTOUIZD, FTOUIZS, FTOULD, FTOULS, FUHTOD, FUHTOS, FUITOD, FUITOS, FULTOD, FULTOS.</li>
+</ul>
+<h2>Forms the lists do not show</h2>
+<ul>
+<li>CMPP, CMNP, TSTP, TEQP: old forms of the comparisons for User mode&#x27;s flags.</li>
+<li>VADDQ.I32 and the like: Neon names with Q added: the Q registers already say it.</li>
+<li>ADDUL and the like: UL is another way to write the condition LO.</li>
+<li>CMPS, CMNS, TSTS, TEQS: S on a comparison is out of date: a comparison always sets the flags.</li>
+<li>MOVEQ R1, #0x1234 and the like: the conditions of the alias are those of MOVW, on the Basic list.</li>
+<li>LDRBEQ, LDMIAEQ and the like: the assembler wants the condition before the ending, LDREQB and LDMEQIA, unless the program has <code>.syntax unified</code>.</li>
+</ul>
+</main>
+</body>
+</html>

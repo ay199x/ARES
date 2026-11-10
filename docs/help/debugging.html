@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARES Help - Debugging</title>
+<meta name="description" content="Debugging in ARES: run, step, backstep, breakpoints, memory, and how a program ends.">
+<link rel="canonical" href="https://ay199x.github.io/ARES/help/debugging.html">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="../images/icon-192.png">
+<link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARES">
+<meta property="og:title" content="ARES Help - Debugging">
+<meta property="og:description" content="Debugging in ARES: run, step, backstep, breakpoints, memory, and how a program ends.">
+<meta property="og:url" content="https://ay199x.github.io/ARES/help/debugging.html">
+<meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The helmet of Ares beside the ARES window">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body class="help">
+<nav class="links" aria-label="Help &amp; Info">
+<a href="intro.html"><i>Intro</i></a>
+<a href="settings.html"><i>Settings</i></a>
+<a href="syscalls.html"><i>Syscalls</i></a>
+<a href="ide.html"><i>IDE</i></a>
+<a href="debugging.html" aria-current="page"><i>Debugging</i></a>
+<a href="tools.html"><i>Tools</i></a>
+<a href="shortcuts.html"><i>Keyboard shortcuts</i></a>
+<a href="history.html"><i>History</i></a>
+<a href="limits.html"><i>Limitations</i></a>
+<a href="acknowledgements.html"><i>Acknowledgements</i></a>
+<a class="home" href="../index.html"><i>ARES&nbsp;home</i></a>
+</nav>
+<header class="title">
+<p class="name">ARES - ARM Educational Simulator</p>
+<p>Release 1.0</p>
+<p>November 2026</p>
+<h1>Debugging</h1>
+</header>
+<main>
+<h2>Going through a program</h2>
+<ul>
+<li>F7 (Step) runs one instruction. The next instruction is highlighted in the Text Segment, and the registers and memory it changed are highlighted too.</li>
+<li>F8 (Backstep) undoes the last step, up to 2,000 steps back. A run at full speed keeps no history unless Settings &gt; Enable Backstep While Running is on.</li>
+<li>A tick in the Bkpt column of the Text Segment sets a breakpoint: Go stops before that instruction. Ctrl+K clears all the breakpoints, Ctrl+T turns them off and on.</li>
+<li>The Run speed slider runs 1 to 30 instructions a second, showing each one. At its right end the program runs at full speed.</li>
+<li>F9 (Pause) and F11 (Stop) halt a running program.</li>
+<li>F12 (Reset) loads the program again, with the registers and memory as at its start.</li>
+</ul>
+<h2>What the colours say</h2>
+<div class="table"><table>
+<tr><th>Colour</th><th>In</th><th>What it says</th></tr>
+<tr><td>light yellow</td><td>Text Segment</td><td>the next instruction</td></tr>
+<tr><td>light red</td><td>Text Segment</td><td>the instruction that ended the program with a runtime error</td></tr>
+<tr><td>light blue</td><td>Data Segment</td><td>a word the last step or run changed</td></tr>
+<tr><td>lime green</td><td>the register tabs</td><td>a register the last step changed</td></tr>
+</table></div>
+<h2>Looking at memory</h2>
+<p>The Data Segment shows 128 words at a time. Its Previous and Next buttons go to the page before and after; Hexadecimal Addresses, Hexadecimal Values and ASCII change how it shows them.</p>
+<p>Below the Data Segment, a list jumps to a place: <code>.data</code> (the start of the program&#x27;s data), current SP (the page of the stack pointer), <code>.text</code> (the program&#x27;s code) and JTAG UART. While no program is assembled the Data Segment is empty and the list is gray, reading &quot;.data: no program assembled&quot;. While SP has its start value 0, the current SP entry reads &quot;current SP: stack at 0xfffffffc&quot; and shows the last page of the on-chip memory, where the first PUSH stores.</p>
+<p>With Settings &gt; Show Labels Window on, a double-click on a label shows its address in the Text Segment or the Data Segment. While no program is running, the values of the registers can be changed by hand: the Registers tab under ARM tells how.</p>
+<h2>How a program ends</h2>
+<ul>
+<li><code>SVC #10</code> or <code>SVC #17</code>, and a branch to itself (<code>B .</code>), end it with <code>-- program is finished running --</code>.</li>
+<li>Running past the last instruction ends it with <code>-- program is finished running (dropped off bottom) --</code>.</li>
+<li>An error, such as an access to an address with no memory, stops it with a runtime error in ARES Messages and Run I/O, and the instruction turns light red. The registers and memory stay as they were, to see what happened; Reset starts the program again. Backstep still works, to see what led to the error, as far as it has history.</li>
+</ul>
+</main>
+</body>
+</html>

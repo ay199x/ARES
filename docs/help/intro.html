@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARES Help - Introduction</title>
+<meta name="description" content="An introduction to ARES: what it is, why it was made, and a first program.">
+<link rel="canonical" href="https://ay199x.github.io/ARES/help/intro.html">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="../images/icon-192.png">
+<link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARES">
+<meta property="og:title" content="ARES Help - Introduction">
+<meta property="og:description" content="An introduction to ARES: what it is, why it was made, and a first program.">
+<meta property="og:url" content="https://ay199x.github.io/ARES/help/intro.html">
+<meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The helmet of Ares beside the ARES window">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body class="help">
+<nav class="links" aria-label="Help &amp; Info">
+<a href="intro.html" aria-current="page"><i>Intro</i></a>
+<a href="settings.html"><i>Settings</i></a>
+<a href="syscalls.html"><i>Syscalls</i></a>
+<a href="ide.html"><i>IDE</i></a>
+<a href="debugging.html"><i>Debugging</i></a>
+<a href="tools.html"><i>Tools</i></a>
+<a href="shortcuts.html"><i>Keyboard shortcuts</i></a>
+<a href="history.html"><i>History</i></a>
+<a href="limits.html"><i>Limitations</i></a>
+<a href="acknowledgements.html"><i>Acknowledgements</i></a>
+<a class="home" href="../index.html"><i>ARES&nbsp;home</i></a>
+</nav>
+<header class="title">
+<p class="name">ARES - ARM Educational Simulator</p>
+<p>Release 1.0</p>
+<p>November 2026</p>
+<h1>Introduction</h1>
+</header>
+<main>
+<p>MARS made MIPS assembly easy to learn, with an editor, a debugger and tools in one program, but ARM had nothing like it. The closest was CPUlator, which beginners in assembly language find hard to learn.</p>
+<p>So ARES was built: an easy simulator for ARMv7 that university labs can use. Its first version is used in the EEL 3801 labs at UCF.</p>
+<p>Fun fact: ARES stands for ARM Educational Simulator, and Ares is the Greek name of the god of war whom the Romans called Mars, so ARES and MARS mean the same thing in two languages.</p>
+<h2>Credits</h2>
+<p>Created by Ayush Shashikant Pindoria.</p>
+<p>Advisors:</p>
+<ul>
+<li>Ronald F. DeMara, Ph.D., P.E., Pegasus Professor, Department of Electrical and Computer Engineering, University of Central Florida; Fellow of IEEE and AAAS</li>
+<li>Paul Amoruso, Ph.D., Assistant Professor of Computer Engineering, Florida Polytechnic University</li>
+</ul>
+<p>First used in the EEL 3801 Computer Organization labs at the University of Central Florida.</p>
+<h2>What ARES is</h2>
+<p>ARES, the ARM Educational Simulator, runs programs in ARMv7 assembly language on a simulated DE1-SoC computer. It supports the ARMv7 instruction set, with the same assembler and options as CPUlator&#x27;s ARMv7 DE1-SoC system, so programs written for CPUlator assemble here too, once they are in capitals (see the IDE tab). ARES simulates no interrupts or timers.</p>
+<h2>A first program</h2>
+<p>Choose File &gt; New and type this program. In ARES a program starts with its data, then <code>.global _start</code> and <code>.text</code>, and instructions and registers are written in capitals.</p>
+<pre>        .data
+hello:  .asciz  &quot;Hello, world!\n&quot;
+
+        .global _start
+        .text
+_start: LDR     R0, =hello      @ R0 = the address of the text
+        SVC     #4              @ print the string
+        SVC     #10             @ end the program</pre>
+<h2>Assemble and run</h2>
+<ul>
+<li>Save the file with File &gt; Save (Ctrl+S).</li>
+<li>Press F3 (Run &gt; Assemble). Errors appear in ARES Messages, each with its file and line: click one to go to the line. Without errors ARES shows the Execute tab.</li>
+<li>Press F5 (Go). The text appears in Run I/O, followed by <code>-- program is finished running --</code>.</li>
+<li>Press F12 (Reset) to start again.</li>
+</ul>
+<h2>Where to read on</h2>
+<p>The ARM tab of the Help window is about the language: every instruction, the directives, the system calls, the registers and the memory. Its ARES tab is about the program: IDE for the window, Debugging for going through a program, Settings, Tools, Keyboard shortcuts, and Limits for what ARES does not do.</p>
+<h2>Example programs</h2>
+<p>File &gt; Open Example lists the short programs that come with ARES, among them one for most of the tools. Choosing one opens a copy as a new file that is not saved yet: run it, change it, and save it where you like. The example itself stays as it is.</p>
+</main>
+</body>
+</html>

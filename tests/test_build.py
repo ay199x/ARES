@@ -228,6 +228,64 @@ def test_what_ares_never_uses_is_left_out_of_a_package():
     assert [item[0] for item in analysis.datas] == list(names[2:])
 
 
+PYTHON_TEXT = "A. HISTORY OF THE SOFTWARE\n\nPYTHON SOFTWARE FOUNDATION LICENSE VERSION 2\n"
+OTHER_TEXT = "End User License Agreement - Miniconda\n"
+
+
+def write(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_python_s_licence_comes_from_beside_the_standard_library_on_a_python_org_mac(tmp_path):
+    base = tmp_path / "Python.framework" / "Versions" / "3.12"
+    stdlib = base / "lib" / "python3.12"
+    wanted = write(stdlib / "LICENSE.txt", PYTHON_TEXT)
+    assert build.python_licence(base, stdlib, "python3.12") == wanted
+
+
+def test_miniconda_s_own_licence_beside_its_python_is_passed_over(tmp_path):
+    base = tmp_path / "miniconda3"
+    stdlib = base / "lib" / "python3.12"
+    write(base / "LICENSE.txt", OTHER_TEXT)
+    wanted = write(stdlib / "LICENSE.txt", PYTHON_TEXT)
+    assert build.python_licence(base, stdlib, "python3.12") == wanted
+
+
+def test_the_standard_library_s_copy_is_preferred_to_the_one_at_the_base(tmp_path):
+    base = tmp_path / "python"
+    stdlib = base / "lib" / "python3.12"
+    write(base / "LICENSE.txt", PYTHON_TEXT)
+    wanted = write(stdlib / "LICENSE.txt", PYTHON_TEXT)
+    assert build.python_licence(base, stdlib, "python3.12") == wanted
+
+
+def test_on_windows_python_s_licence_lies_at_the_base_of_the_installation(tmp_path):
+    base = tmp_path / "Python311"
+    stdlib = base / "Lib"
+    stdlib.mkdir(parents=True)
+    wanted = write(base / "LICENSE.txt", PYTHON_TEXT)
+    assert build.python_licence(base, stdlib, "python3.11") == wanted
+
+
+def test_the_build_stops_when_no_licence_file_is_python_s(tmp_path):
+    base = tmp_path / "miniconda3"
+    stdlib = base / "lib" / "python3.12"
+    stdlib.mkdir(parents=True)
+    write(base / "LICENSE.txt", OTHER_TEXT)
+    with pytest.raises(SystemExit) as stop:
+        build.python_licence(base, stdlib, "python3.12")
+    message = str(stop.value)
+    assert "PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2" in message
+    assert str(base / "LICENSE.txt") in message and str(stdlib / "LICENSE.txt") in message
+
+
+def test_the_python_that_builds_here_has_its_licence_found():
+    found = build.python_licence()
+    assert "PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2" in found.read_text(encoding="utf-8")
+
+
 def test_the_licence_texts_of_a_package_exist():
     sources = build.licence_files()
     assert [name for _, name in sources] == ["GPL-3.0.txt", "Apache-2.0.txt", "Python-LICENSE.txt",

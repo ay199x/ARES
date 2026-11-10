@@ -168,7 +168,6 @@ class Page(ttk.Frame):
     def _write_bullet(self, block):
         self.text.write("•\t", helptext.BULLET)
         self._words(block.text + "\n", helptext.BULLET)
-
     def _write_document(self, block):
         self.text.write(block.text.rstrip("\n") + "\n", helptext.DOCUMENT)
 
@@ -374,6 +373,22 @@ class InstructionList(ttk.Frame):
             self.toggle(index)
             self._go_to(index)
         self._pressed_on = None
+
+
+def page_blocks(title, menus, label_of):
+    """The blocks of a page of text of the Help, by the title of its tab; the website shows the
+    same. menus and label_of make the Keyboard shortcuts page (ares.gui.app.MENUS)."""
+    if title == "License":
+        return helptext.license_blocks(
+            read_document(LICENSE_FILE), read_document(NOTICES_FILE),
+            [(heading, read_document(name)) for heading, name in PACKAGED_LICENCES
+             if document_path(name).is_file()])
+    if title == "Keyboard shortcuts":
+        return helptext.parse(helptext.keyboard_page(menus, label_of))
+    made = {"Intro": helptext.intro_page, "Limits": helptext.limits_page,
+            "Syscalls": helptext.system_calls_page,
+            "Acknowledgements": helptext.acknowledgements_page}.get(title)
+    return helptext.parse(made() if made else helptext.PAGES[title])
 
 
 def tool_entries():
@@ -584,17 +599,7 @@ class HelpWindow:
 
     def blocks(self, title):
         """The blocks of a page of text."""
-        if title == "License":
-            return helptext.license_blocks(
-                read_document(LICENSE_FILE), read_document(NOTICES_FILE),
-                [(heading, read_document(name)) for heading, name in PACKAGED_LICENCES
-                 if document_path(name).is_file()])
-        if title == "Keyboard shortcuts":
-            return helptext.parse(helptext.keyboard_page(self.menus, self.label_of))
-        made = {"Intro": helptext.intro_page, "Limits": helptext.limits_page,
-                "Syscalls": helptext.system_calls_page,
-                "Acknowledgements": helptext.acknowledgements_page}.get(title)
-        return helptext.parse(made() if made else helptext.PAGES[title])
+        return page_blocks(title, self.menus, self.label_of)
 
     def _fill(self, title):
         """Make and fill the page of a tab, the first time it is shown."""

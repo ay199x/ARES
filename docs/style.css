@@ -1,0 +1,72 @@
+/* The main pages: a page in the middle, the helmet and a column of buttons at its left. */
+body { margin: 0; color: #000000; }
+body.main { background: #B8CFE5; font: 14px/1.4 Arial, Helvetica, sans-serif; }
+.page { max-width: 766px; margin: 0 auto; background: #FFFFFF; padding: 0 10px 12px; }
+.masthead { height: 29px; background: #24406F; }
+.columns { display: flex; margin-top: 10px; }
+.left { flex: none; width: 179px; background: #EEEEEE; padding: 10px 0 40px; }
+.left .helmet { display: block; margin: 0 0 0 10px; image-rendering: pixelated; }
+.buttons { list-style: none; margin: 28px 0 0; padding: 0 0 0 35px; }
+.buttons li { margin: 0 0 4px; }
+.button { display: inline-block; box-sizing: border-box; min-width: 100px; padding: 1px 6px 0;
+  text-align: center; font: 16px/20px Calibri, Arial, Helvetica, sans-serif; color: #000000;
+  text-decoration: none; background: #C8DDF2; border: 1px solid #6382BF;
+  border-bottom: 4px solid #24406F; }
+.button:hover { background: #E3EEF9; }
+.button:active { border-bottom-width: 2px; margin-top: 2px; }
+.button[aria-current] { background: #FFFFFF; font-weight: bold; }
+.button.wide { min-width: 220px; font-size: 15px; }
+:focus-visible { outline: 2px dotted #000000; outline-offset: 2px; }
+.content { flex: 1; min-width: 0; padding: 4px 4px 0 14px; }
+.content h1 { font-style: italic; font-size: 24px; margin: 22px 0 6px; }
+.content h1 small { font-size: 18px; }
+.content h1 .version { font-style: normal; font-size: 22px; margin-left: 6px; }
+.subtitle { font-style: italic; font-size: 18px; margin: 0 0 14px; }
+.download { font-weight: bold; }
+.download a { font-size: 18px; font-style: italic; }
+.content li { margin: 4px 0; }
+.features img { vertical-align: middle; margin: 4px 6px 4px 0; border: 1px solid #C8C8C8;
+  box-sizing: border-box; }
+.option { margin: 8px 0; }
+.pair { display: flex; gap: 8px; align-items: flex-start; margin-top: 4px; }
+.pair img { max-width: calc(50% - 4px); margin: 0; }
+.packages td { padding: 4px 8px 4px 0; vertical-align: middle; }
+.footer { text-align: right; color: #444444; font-size: 12px; margin: 10px 4px 0; }
+pre { font: 13px/1.35 Consolas, "Courier New", monospace; background: #F4F4F4;
+  border: 1px solid #CCCCCC; padding: 6px 8px; overflow-x: auto; }
+code { font-family: Consolas, "Courier New", monospace; }
+.table { overflow-x: auto; }
+img { max-width: 100%; height: auto; }
+
+/* The Help & Info pages: plain text, a row of links at the top. */
+body.help { max-width: 60em; margin: 0 auto; padding: 8px 14px 30px;
+  font: 16px/1.4 "Times New Roman", Times, serif; background: #FFFFFF; }
+.links { text-align: center; font-weight: bold; font-size: 1.17em; line-height: 1.6; }
+.links a { margin: 0 0.45em; white-space: nowrap; }
+.links a.home { margin-left: 1.6em; }
+.title { text-align: center; font-weight: bold; }
+.title p { margin: 0.9em 0; }
+.title .name { font-size: 1.17em; }
+.title h1 { font-size: 1em; margin: 0.9em 0 1.2em; }
+body.help h2 { font-size: 1.1em; margin: 1.4em 0 0.5em; }
+body.help table { border-collapse: collapse; margin: 0.5em 0; }
+body.help th, body.help td { border: 1px solid #999999; padding: 2px 6px; text-align: left;
+  vertical-align: top; }
+body.help th { background: #C8DDF2; }
+.tool { display: block; width: auto; max-width: min(100%, 600px); border: 1px solid #999999;
+  margin: 0.5em 0; box-sizing: border-box; }
+body.help h3 { font-size: 1em; margin: 1.2em 0 0.4em; }
+.contents { text-align: center; }
+
+/* A phone: the buttons in a row under the helmet. */
+@media (max-width: 600px) {
+  .page { padding: 0 6px 10px; }
+  .columns { flex-direction: column; }
+  .left { width: auto; display: flex; align-items: center; gap: 10px; padding: 8px; }
+  .left .helmet { width: 64px; height: 64px; margin: 0; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; }
+  .buttons li { margin: 0; }
+  .button { min-width: 0; font-size: 15px; }
+  .content { padding: 4px 2px 0; }
+  .button.wide { min-width: 0; }
+}

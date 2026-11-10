@@ -21,6 +21,15 @@ WRAP = 400                      # the width of the text
 LINE_GAP = 3                    # under each line of the text
 BLANK = 14                      # the height of a blank line
 OK_GAP = 6                      # above OK
+BULLET = "• "                   # the mark of an advisor's line
+MARK = 12                       # the room of a bullet's mark, before its words
+MARK_GAP = 4                    # between the mark and the words
+
+
+def credit_lines():
+    """The credits as the box shows them: plain lines, the advisors as bullets."""
+    return (credits.CREATED_BY, credits.ADVISORS_HEADING,
+            *(BULLET + advisor for advisor in credits.ADVISORS), credits.FIRST_USED)
 
 
 def read_document(name):
@@ -52,9 +61,17 @@ class AboutDialog:
                                                    padx=(0, px(window, GAP)))
         lines = ttk.Frame(message)
         lines.pack(side="left", anchor="n")
-        self.lines = (APP_TITLE, APP_FULL_NAME, "", *credits.CREDITS, "", LICENCE, ICONS)
+        self.lines = (APP_TITLE, APP_FULL_NAME, "", *credit_lines(), "", LICENCE, ICONS)
         for text in self.lines:
-            if text:
+            if text.startswith(BULLET):
+                # A bullet: its mark, then its words, whose wrapped lines stay under the words.
+                row = ttk.Frame(lines)
+                row.pack(side="top", anchor="w", pady=(0, px(window, LINE_GAP)))
+                ttk.Label(row, text=BULLET.strip()).grid(row=0, column=0, sticky="nw")
+                ttk.Label(row, text=text[len(BULLET):], justify="left",
+                          wraplength=px(window, WRAP) - px(window, MARK)).grid(
+                    row=0, column=1, sticky="nw", padx=(px(window, MARK_GAP), 0))
+            elif text:
                 ttk.Label(lines, text=text, wraplength=px(window, WRAP), justify="left").pack(
                     side="top", anchor="w", pady=(0, px(window, LINE_GAP)))
             else:

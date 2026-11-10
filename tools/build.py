@@ -107,15 +107,30 @@ def tool_names(tag):
     return [name + suffix for name in (ASSEMBLER, LINKER)]
 
 
-def python_licence():
-    """The licence text of the Python that builds ARES."""
-    version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    base = Path(sys.base_prefix)
-    for place in (base / "LICENSE.txt", Path(sysconfig.get_path("stdlib")) / "LICENSE.txt",
+PYTHON_LICENCE_MARK = "PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2"
+
+
+def python_licence(base=None, stdlib=None, version=None):
+    """The licence text of the Python that builds ARES.
+
+    The copy beside the standard library comes first: a distribution such as Miniconda keeps a
+    LICENSE.txt of its own at the base of the installation. A file counts only if it is Python's.
+    """
+    base = Path(base or sys.base_prefix)
+    stdlib = Path(stdlib or sysconfig.get_path("stdlib"))
+    version = version or f"python{sys.version_info.major}.{sys.version_info.minor}"
+    places = []
+    for place in (stdlib / "LICENSE.txt", base / "LICENSE.txt",
                   base / "lib" / version / "LICENSE.txt", base / "Lib" / "LICENSE.txt"):
-        if place.is_file():
+        if place not in places:
+            places.append(place)
+    for place in places:
+        if place.is_file() and PYTHON_LICENCE_MARK in place.read_text(encoding="utf-8",
+                                                                       errors="replace"):
             return place
-    raise SystemExit(f"Python's LICENSE.txt was not found under {base}")
+    looked = "\n  ".join(str(place) for place in places)
+    raise SystemExit(f"Python's licence was not found: no file containing \"{PYTHON_LICENCE_MARK}\" "
+                     f"in any of these places:\n  {looked}")
 
 
 def licence_files():

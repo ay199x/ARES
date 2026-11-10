@@ -2,17 +2,27 @@
 # Copyright (c) 2026 The ARES Project
 """Who made ARES and why: the words the About box, the Help window and README.md share."""
 
+# The credits: plain lines, but for the two advisors, which are bullets under "Advisors:".
 CREATED_BY = "Created by Ayush Shashikant Pindoria."
 ADVISORS_HEADING = "Advisors:"
 ADVISORS = (
     "Ronald F. DeMara, Ph.D., P.E., Pegasus Professor, Department of Electrical and Computer "
-    "Engineering, University of Central Florida; Fellow of IEEE and AAAS.",
+    "Engineering, University of Central Florida; Fellow of IEEE and AAAS",
     "Paul Amoruso, Ph.D., Assistant Professor of Computer Engineering, Florida Polytechnic "
-    "University.",
+    "University",
 )
 FIRST_USED = ("First used in the EEL 3801 Computer Organization labs at the University of Central "
               "Florida.")
 CREDITS = (CREATED_BY, ADVISORS_HEADING, *ADVISORS, FIRST_USED)
+
+
+def credits_markup():
+    """The credits in the Help's markup (ares.helptext), which README.md shows as they are:
+    a paragraph each, the advisors as bullets under their heading."""
+    advisors = "\n".join(f"- {advisor}" for advisor in ADVISORS)
+    return f"{CREATED_BY}\n\n{ADVISORS_HEADING}\n{advisors}\n\n{FIRST_USED}"
+
+
 TEXTBOOK = "Harris and Harris, Digital Design and Computer Architecture: ARM Edition."
 
 # The paragraphs of the start of the Help's Intro page.

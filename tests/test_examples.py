@@ -37,6 +37,7 @@ EXPECTED = {
     "instruction_mix.s": ("", "Result: 78\n"),
     "float_bits.s": ("", "0x3f800000\n0xbf000000\n0x3dcccccd\n"),
     "xray_tour.s": ("", ""),
+    "first_branch.s": ("", "The larger number is 12\n"),
 }
 
 
@@ -174,3 +175,24 @@ def test_the_mix_example_fills_both_panels(tmp_path):
     run_with(model, "instruction_mix.s", tmp_path)
     assert all(model.classes), dict(zip(classify.CLASSES, model.classes))
     assert all(model.formats), dict(zip(classify.FORMATS, model.formats))
+
+
+def test_the_first_branch_example_behaves_as_its_walkthrough_says(tmp_path):
+    """CMP 7, 12 sets N alone; BGE is not taken; Backstep brings the flags of CMP back."""
+    machine = loaded("first_branch.s", tmp_path)
+    runner = Runner(machine)
+    flags = lambda: machine.cpsr >> 28                  # N Z C V
+    for _ in range(3):                                  # MOV, MOV, CMP
+        runner.step()
+    assert flags() == 0b1000                            # N set: 7 - 12 is negative
+    branch = machine.pc
+    runner.step()                                       # BGE: N differs from V
+    assert machine.pc == branch + 4
+    runner.backstep()
+    assert machine.pc == branch and flags() == 0b1000
+    runner.step()
+    runner.step()                                       # MOV R3, R2
+    assert machine.reg(3) == 12
+    for word in (machine.peek_words(address, 1)[0] for address in range(machine.pc - 20,
+                                                                         machine.pc, 4)):
+        assert xray.outside_note(word) == "", hex(word)  # the X-Ray animates each of them

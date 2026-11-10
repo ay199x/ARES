@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARES Help - The window and the editor</title>
+<meta name="description" content="The ARES window and its editor: files, editing, assembling and the capital-letters rule.">
+<link rel="canonical" href="https://ay199x.github.io/ARES/help/ide.html">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="../images/icon-192.png">
+<link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+<link rel="stylesheet" href="../style.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARES">
+<meta property="og:title" content="ARES Help - The window and the editor">
+<meta property="og:description" content="The ARES window and its editor: files, editing, assembling and the capital-letters rule.">
+<meta property="og:url" content="https://ay199x.github.io/ARES/help/ide.html">
+<meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The helmet of Ares beside the ARES window">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body class="help">
+<nav class="links" aria-label="Help &amp; Info">
+<a href="intro.html"><i>Intro</i></a>
+<a href="settings.html"><i>Settings</i></a>
+<a href="syscalls.html"><i>Syscalls</i></a>
+<a href="ide.html" aria-current="page"><i>IDE</i></a>
+<a href="debugging.html"><i>Debugging</i></a>
+<a href="tools.html"><i>Tools</i></a>
+<a href="shortcuts.html"><i>Keyboard shortcuts</i></a>
+<a href="history.html"><i>History</i></a>
+<a href="limits.html"><i>Limitations</i></a>
+<a href="acknowledgements.html"><i>Acknowledgements</i></a>
+<a class="home" href="../index.html"><i>ARES&nbsp;home</i></a>
+</nav>
+<header class="title">
+<p class="name">ARES - ARM Educational Simulator</p>
+<p>Release 1.0</p>
+<p>November 2026</p>
+<h1>The window and the editor</h1>
+</header>
+<main>
+<h2>The window</h2>
+<ul>
+<li>Edit: your files, one tab each. Keywords are coloured as you type.</li>
+<li>Execute: the Text Segment (each instruction with its address, code and source line), the Data Segment (memory, eight words a row) and, with Settings &gt; Show Labels Window, the Labels.</li>
+<li>Registers, Coproc 10 and Coproc 11: the registers (see the Registers tab under ARM).</li>
+<li>ARES Messages: what the assembler and the commands report.</li>
+<li>Run I/O: what the program prints, and where it reads what you type.</li>
+</ul>
+<p>The title bar shows the file on top, with <code>*</code> after its name while it has changes that are not saved, and the version: <code>hello.s* - ARES 1.0</code>. The dividers between the parts can be dragged and the window resized, for as long as ARES runs: every start opens maximized, with the default layout. A scroll bar shows only while what it scrolls does not fit; the editor always has both. The toolbar holds the commands used most, in the order of the menus: New, Open, Save, Save As, Undo, Redo, Cut, Copy, Paste, Find/Replace, Assemble, Go, Step, Backstep, Pause, Stop, Reset and Help. Rest the mouse on a button to read what it does. A gray button or menu item is not available at the moment. At the right of the toolbar the Run speed slider sets how fast Go runs (see the Debugging tab).</p>
+<h2>The editor</h2>
+<ul>
+<li>File &gt; New opens a new file, File &gt; Open an existing one, and each has a tab with a close button. File &gt; Open Example opens a copy of one of the programs that come with ARES, as a new file with the example&#x27;s name that is not saved yet; File &gt; Save then asks where to save it. ARES asks before it closes a file with changes that are not saved, also at File &gt; Exit.</li>
+<li>Under the text the status line shows <code>Line: x  Column: y</code>, and Show Line Numbers turns the numbers at the left on and off.</li>
+<li>Edit has Undo, Redo, Cut, Copy, Paste and Select All. Edit &gt; Find/Replace finds and replaces text, with Match case and Whole word, one at a time or all at once. There, Return presses the button that has the focus, else Find.</li>
+<li>A new line starts as far in as the line above it. The Tab key inserts spaces, or a tab with Settings &gt; Editor Font.</li>
+<li>The colours are CPUlator&#x27;s: registers blue, numbers green, labels being defined dark green and bold, directives teal, comments brown and strings dark red.</li>
+</ul>
+<h2>Assembling</h2>
+<p>Run &gt; Assemble (F3) assembles the file on top with the GNU assembler. ARES Messages shows what happens, and each error or warning as <code>Error in hello.s line 7: ...</code>, with a red mark at the left of the line until the next Assemble. A click on the message selects the line in the editor.</p>
+<p>A program with no <code>_start</code> is a warning, not an error: it starts at address 0x00000000.</p>
+<p>After an Assemble without errors ARES shows the Execute tab. Opening a file or going to another file&#x27;s tab changes nothing there: only Assemble loads a program. Closing the file of the assembled program unloads it, and ARES goes back to the state it has at the start, keeping the text of ARES Messages and Run I/O.</p>
+<p>File &gt; Dump Memory saves the program&#x27;s code or data to a file, as binary or as hexadecimal text.</p>
+<h2>Input</h2>
+<p>When the program reads input (for example with <code>SVC #5</code>), Run I/O comes to the front with a blinking text cursor: type the line and press Enter. At other times ARES Messages and Run I/O show no text cursor; their text can still be selected with the mouse and copied with Ctrl+C. With Settings &gt; Popup Dialog for Input on, a small dialog asks for the line instead.</p>
+<h2>Capital letters</h2>
+<p>With Settings &gt; Require Capital Letters on, as it is at first, ARES refuses a program whose instructions or registers are not in capitals, and shows each line corrected. Directives are in lowercase. Edit &gt; Capitalize Instructions corrects the whole file. Comments and strings are not checked, and labels can be spelled in any way, as long as it is always the same.</p>
+</main>
+</body>
+</html>

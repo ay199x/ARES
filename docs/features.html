@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARES Features</title>
+<meta name="description" content="The features of ARES: an editor, run, step and backstep, breakpoints, editable registers and memory, system calls, the DE1-SoC&#x27;s devices and teaching tools.">
+<link rel="canonical" href="https://ay199x.github.io/ARES/features.html">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARES">
+<meta property="og:title" content="ARES Features">
+<meta property="og:description" content="The features of ARES: an editor, run, step and backstep, breakpoints, editable registers and memory, system calls, the DE1-SoC&#x27;s devices and teaching tools.">
+<meta property="og:url" content="https://ay199x.github.io/ARES/features.html">
+<meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The helmet of Ares beside the ARES window">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body class="main">
+<div class="page">
+<div class="masthead"></div>
+<div class="columns">
+<nav class="left" aria-label="Site">
+<img class="helmet" src="ares-helmet.png" width="128" height="128" alt="The helmet of Ares, the icon of ARES">
+<ul class="buttons">
+<li><a class="button" href="index.html">Home</a></li>
+<li><a class="button" href="features.html" aria-current="page">Features</a></li>
+<li><a class="button" href="download.html">Download</a></li>
+<li><a class="button" href="license.html">License</a></li>
+<li><a class="button" href="papers.html">Papers</a></li>
+<li><a class="button" href="help/intro.html">Help &amp; Info</a></li>
+</ul>
+</nav>
+<main class="content">
+<h1>ARES Features</h1>
+<p>What ARES does, in short:</p>
+<ul class="features">
+<li>A window you work with the mouse, with an editor built in. These three buttons of the toolbar run the program, step one instruction, and step one instruction back.<br><img src="images/features/run-step-backstep.png" width="114" height="41" alt="The Go, Step and Backstep buttons of the toolbar"></li>
+<li>Integrated editor, featuring multiple file-editing tabs, syntax colouring, find and replace, and line numbers. Errors from the assembler point to their lines.</li>
+<li>Breakpoints: a click on the check box beside an instruction sets or clears one<br><img src="images/features/breakpoints.png" width="381" height="114" alt="The Bkpt column of check boxes beside the instructions of the Text Segment"></li>
+<li>Registers you edit in place, like the cells of a spreadsheet; memory shown in hexadecimal, decimal or ASCII</li>
+<li>Values shown in hexadecimal or in decimal</li>
+<li>Floating point registers S0 to S31 and D0 to D31, in the Coproc 10 and Coproc 11 tabs, with FPSCR</li>
+<li>A run speed you choose, up to full speed <img src="images/features/run-speed.png" width="238" height="54" alt="The Run speed slider, at its maximum: no interaction"></li>
+<li>Backstep: one instruction undone at a time</li>
+<li>System calls (<code>SVC #N</code>) for text and number input and output, files, dialogs, random numbers and time</li>
+<li>The DE1-SoC computer's JTAG UART, and with the Digital Lab Sim its red LEDs, slide switches, push buttons and seven-segment displays</li>
+<li>"Tools" for watching a program run, each in its own window, from the Tools menu. The ARM X-Ray animates each instruction on a single-cycle ARM datapath.<br><span class="pair"><img src="images/features/tools-menu.png" width="300" height="248" alt="The Tools menu: ARM X-Ray, BHT Simulator, Bitmap Display, Data Cache Simulator, Digital Lab Sim, Dynamic Instruction Counter, Floating Point Representation, Keyboard and Display MMIO Simulator, Memory Reference Visualization and Memory Map"> <img src="images/features/xray.png" width="420" height="268" alt="The ARM X-Ray window: the single-cycle datapath with the paths in use in dark blue"></span></li>
+<li>A built-in Help that lists every instruction, pseudo-instruction and system call and explains the directives, and example programs under File &gt; Open Example</li>
+</ul>
+</main>
+</div>
+<p class="footer">Copyright (c) 2026 The ARES Project</p>
+</div>
+</body>
+</html>

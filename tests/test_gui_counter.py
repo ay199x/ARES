@@ -13,6 +13,7 @@ from test_gui_assemble import assemble
 from test_gui_run import go_to_end, loaded
 from test_responsiveness import pictures
 from test_style import make_root  # noqa: F401  (a fixture: a root at a display scale)
+from window_layout import at_size, clashes
 
 from ares.classify import CLASSES, FORMATS
 from ares.gui import style, tools
@@ -150,6 +151,31 @@ def test_the_layout_two_panels_side_by_side(app):
                 == padding(label, "pady")
             assert padding(bar.canvas, "padx") == (px(box, 6), 0)
     assert len(window.categories.bars) == 5 and len(window.formats.bars) == 8
+
+
+def test_a_larger_window_keeps_the_panels_their_size_in_its_middle(app):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), the two panels keep their size and stay side by side, together in the middle of
+    the room; nothing clashes."""
+    window = counter(app)
+    top = window.window
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    left, right = window.categories.box, window.formats.box
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        assert clashes(part) == [], size
+        sizes[size] = [(box.winfo_width(), box.winfo_height()) for box in (left, right)]
+        assert right.winfo_rootx() - left.winfo_rootx() - left.winfo_width() == px(right, 5)
+    assert sizes[large] == sizes[least]
+    body = left.master.master
+    x, y = left.winfo_rootx() - body.winfo_rootx(), left.winfo_rooty() - body.winfo_rooty()
+    width = right.winfo_rootx() + right.winfo_width() - left.winfo_rootx()
+    assert x > 0 and abs(x - (body.winfo_width() - x - width)) <= 1
+    assert y > 0 and abs(y - (body.winfo_height() - y - left.winfo_height())) <= 1
 
 
 def test_the_panels_line_up(app):

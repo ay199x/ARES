@@ -29,7 +29,7 @@ from ...machine import DDR_BASE, DDR_END, ONCHIP_BASE, ONCHIP_SIZE
 from ..style import FACE, SHADOW, TEXT, group, sunken
 from ..style import WINDOW as WHITE
 from ..widgets import HidingBars, ReadOnlyText, Tooltip, px, scale, tab_moves_on
-from .frame import PercentBar, ToolModel, ToolWindow
+from .frame import PercentBar, ToolModel, ToolWindow, when_settled
 
 PLACEMENTS = ("Direct Mapping", "Fully Associative", "N-way Set Associative")
 DIRECT, FULL, SET = range(len(PLACEMENTS))
@@ -116,6 +116,9 @@ Check Enabled to log each access from then on: its number, its address, tag and 
 and on the next line whether it was a hit, or which block it filled or replaced (with
 LRU: the access that used that block last). The log keeps the newest 1,000 accesses.
 Checking or clearing Enabled empties the log, as Reset does.
+
+The window can be made larger or maximized: the block table grows with it, in proportion,
+and the log shows more lines. The lists and the counts keep their size.
 
 What counts as a memory access
 
@@ -420,8 +423,8 @@ class CacheWindow(ToolWindow):
             box.columnconfigure(column, weight=1)
 
     def _build_performance(self, body, gap):
-        box = group(body, "Cache Performance")
-        box.pack(fill="x", pady=(gap, 0))
+        box = self.performance = group(body, "Cache Performance")
+        box.pack(fill="both", expand=True, pady=(gap, 0))
         numbers = ttk.Frame(box)
         numbers.pack(side="left", anchor="n")
         self.accesses, self.hits, self.misses = (tk.StringVar(master=box, value="0")
@@ -436,10 +439,15 @@ class CacheWindow(ToolWindow):
         self.rate = PercentBar(numbers, width=field.winfo_reqwidth() / scale(body))
         self.rate.canvas.grid(row=len(fields), column=1, sticky="w", padx=(gap, 0),
                               pady=px(body, 2))
-        table = ttk.Frame(box)
-        table.pack(side="right", anchor="n", padx=(4 * gap, 0))
-        legend = ttk.Frame(table)
+        # The legend and the table at the top right of the room left of them, which takes the
+        # room a larger window gives; the table grows in it (_fit_table).
+        room = self.table_room = ttk.Frame(box)
+        room.pack(side="right", fill="both", expand=True, padx=(4 * gap, 0))
+        table = self.table_frame = ttk.Frame(room)
+        table.place(relx=1, y=0, anchor="ne")
+        legend = self.legend = ttk.Frame(table)
         legend.pack(side="left", anchor="n", padx=(0, gap))
+        self.legend_gap = gap
         ttk.Label(legend, text="Cache block table").pack(anchor="w")
         self.table_order = ttk.Label(legend)
         self.table_order.pack(anchor="w", pady=(0, gap))
@@ -448,13 +456,19 @@ class CacheWindow(ToolWindow):
             row.pack(anchor="w", pady=px(body, 1))
             _swatch(row, COLOURS[state]).pack(side="left")
             ttk.Label(row, text=f"= {name}").pack(side="left", padx=(gap, 0))
-        frame = sunken(tk.Frame(table))
+        frame = self.table_border = sunken(tk.Frame(table))
         frame.pack(side="left", anchor="n")
         self.table = tk.Canvas(frame, background=WHITE, borderwidth=0, highlightthickness=0,
                                takefocus=False)
         self.table.pack()
         self.cells = []             # the table's rectangles, block 0 first
         self._shown = bytearray()   # the state each shows
+        self.table_usual = None     # the table's (width, height) in a window of usual size
+        self._table_drawn = None    # its (width, height) as drawn
+        # Waiting for the size to settle belongs to the main window: a wait the window's
+        # closing cuts short then ends quietly (_fit_table() finds no window).
+        room.after, room.after_cancel = room._root().after, room._root().after_cancel
+        when_settled(room, self._fit_table)
 
     def _build_log(self, body, gap):
         box = group(body, "Run-time Log")
@@ -526,12 +540,17 @@ class CacheWindow(ToolWindow):
         self.show()
 
     def _organized(self):
-        self._show_organization()
+        if self._show_organization():       # a table of another size: so is the window
+            self.window.update_idletasks()
+            self.window.minsize(*self.min_size())
+            self._fit_table()
         self.show()
 
     # Showing -------------------------------------------------------------------------
 
     def _show_organization(self):
+        """Show the organization; True when the table was made anew for another number of
+        blocks."""
         model = self.model
         self.placement_box.current(model.placement)
         self.replacement_box.current(model.replacement)
@@ -540,27 +559,58 @@ class CacheWindow(ToolWindow):
         self.set_size_box.configure(values=set_sizes(model.placement, model.blocks))
         self.set_size_box.set(model.set_size)
         self.cache_size.set(str(model.cache_bytes))
-        if len(self.cells) != model.blocks:
-            self._make_table()
+        if len(self.cells) == model.blocks:
+            return False
+        self._make_table()
+        return True
 
     def _make_table(self):
-        """Draw a cell for each block of the model's cache, all empty."""
+        """Draw a cell for each block of the model's cache, all empty, at the table's usual
+        size; the room of the legend and the table asks for what they need at that size."""
         canvas, blocks = self.table, self.model.blocks
-        columns, rows = table_shape(blocks)
-        width = px(canvas, columns * max(CELL, COLUMN_WIDTH // columns))
-        height = px(canvas, TABLE_HEIGHT)
+        columns, _ = table_shape(blocks)
+        self.table_usual = (px(canvas, columns * max(CELL, COLUMN_WIDTH // columns)),
+                            px(canvas, TABLE_HEIGHT))
         canvas.delete("all")
+        self.cells = [canvas.create_rectangle(0, 0, 0, 0, fill=COLOURS[EMPTY], outline=SHADOW)
+                      for _ in range(blocks)]
+        self._shown = bytearray(blocks)
+        self._table_drawn = None
+        self.table_order.configure(text="(block 0 at top)" if columns == 1
+                                   else "(block 0 at top left)")
+        self._size_table(*self.table_usual)
+        self.table_frame.update_idletasks()     # the size the legend and the table ask for
+        self.table_room.configure(width=self.table_frame.winfo_reqwidth(),
+                                  height=self.table_frame.winfo_reqheight())
+
+    def _size_table(self, width, height):
+        """Give the table width x height pixels, shared by its cells."""
+        if (width, height) == self._table_drawn:
+            return
+        self._table_drawn = width, height
+        canvas = self.table
+        columns, rows = table_shape(len(self.cells))
         canvas.configure(width=width, height=height)
         # The outlines of neighbours overlap, so the lines between the cells are one pixel.
         xs = [round(k * (width - 1) / columns) for k in range(columns + 1)]
         ys = [round(k * (height - 1) / rows) for k in range(rows + 1)]
-        self.cells = [canvas.create_rectangle(xs[block // rows], ys[block % rows],
-                                              xs[block // rows + 1], ys[block % rows + 1],
-                                              fill=COLOURS[EMPTY], outline=SHADOW)
-                      for block in range(blocks)]
-        self._shown = bytearray(blocks)
-        self.table_order.configure(text="(block 0 at top)" if columns == 1
-                                   else "(block 0 at top left)")
+        for block, cell in enumerate(self.cells):
+            column, row = divmod(block, rows)
+            canvas.coords(cell, xs[column], ys[row], xs[column + 1], ys[row + 1])
+
+    def _fit_table(self):
+        """The window's size has settled: the table grows in proportion into the room a
+        larger window gives the group box, never smaller than its usual size. The room's
+        width is what the legend leaves; its height what the window adds to the box."""
+        if self.window is None or self.table_usual is None:
+            return
+        width, height = self.table_usual
+        box, room = self.performance, self.table_room
+        border = 2 * self.table_border.winfo_pixels(self.table_border.cget("borderwidth"))
+        across = room.winfo_width() - self.legend.winfo_reqwidth() - self.legend_gap - border
+        down = height + box.winfo_height() - box.winfo_reqheight()
+        zoom = max(1.0, min(across / width, down / height))
+        self._size_table(int(width * zoom), int(height * zoom))
 
     def show(self):
         model = self.model

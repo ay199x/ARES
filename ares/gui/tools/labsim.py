@@ -18,8 +18,8 @@ from ...devices import (DISPLAY_COUNT, HEX3_HEX0, HEX5_HEX4, KEY_COUNT, KEYS, LE
                         SEGMENT_COUNT, SWITCH_COUNT, SWITCHES, Board)
 from ..style import (DARK_SHADOW, FACE, HIGHLIGHT, LIGHT, RAISED, SHADOW, SUNKEN, TEXT, draw_bevel,
                      group as group_box)
-from ..widgets import Tooltip, px
-from .frame import ToolModel, ToolWindow
+from ..widgets import Tooltip, px, scale
+from .frame import ToolModel, ToolWindow, when_settled
 
 # Sizes in design pixels.
 DIGIT = (28, 50)                # a seven-segment digit: width and height
@@ -102,6 +102,9 @@ to the LEDs, displays, Interruptmask and Edgecapture; the switches and keys stay
 are. The tool's Reset button switches the board off: LEDs and displays dark, switches
 down, Interruptmask and Edgecapture 0.
 
+The window can be made larger or maximized: the displays, the LEDs and the switches grow
+with it, in proportion, with their names and numbers. The keys keep their size.
+
 A connected Digital Lab Sim costs nothing while the program does not use these devices;
 each access to them takes a little time.
 """
@@ -137,7 +140,14 @@ class LabSimModel(ToolModel):
 
 
 class LabSimWindow(ToolWindow):
-    """Tools > Digital Lab Sim."""
+    """Tools > Digital Lab Sim.
+
+    The displays, the LEDs and the switches are drawn on three canvases at the
+    board's zoom, 1 in the window of usual size. A larger window gives the
+    board its room: once the window's size has settled, they are drawn again
+    as large as the room takes them, in proportion, with their texts
+    (_fit()); the keys keep their size.
+    """
 
     NAME = "Digital Lab Sim"
     HELP = HELP
@@ -149,7 +159,9 @@ class LabSimWindow(ToolWindow):
 
     def build(self, body):
         gap = px(body, 6)
-        font = tkfont.nametofont("TkDefaultFont", root=body)
+        self.body = body
+        self.zoom = 1.0
+        self._fonts = {}                # points -> the board's texts' font of that size
         groups = [group_box(body, text) for text in (
             f"Seven-segment displays (0x{HEX3_HEX0:08x}, 0x{HEX5_HEX4:08x})",
             f"Red LEDs (0x{LEDS:08x})",
@@ -158,28 +170,105 @@ class LabSimWindow(ToolWindow):
         for row, group in enumerate(groups):
             group.grid(row=row, column=0, sticky="we", pady=(0 if row == 0 else gap, 0))
         body.columnconfigure(0, weight=1)
-        self.displays = self._make_displays(groups[0], font)
-        self.leds = self._make_leds(groups[1], font)
-        self.switches = self._make_switches(groups[2], font)
+        self.displays, self.leds, self.switches = (_canvas(group) for group in groups[:3])
+        self.switches.bind("<ButtonPress-1>", self._switch_clicked)
         self.key_buttons = self._make_keys(groups[3])
         self.switch_tip = Tooltip(self.switches, SWITCH_TIP)
         self.key_tips = [Tooltip(button, KEY_TIP) for button in self.key_buttons]
+        self._draw_board()
+        # The board asks for its usual size whatever its zoom; a larger window gives it more.
+        body.update_idletasks()
+        self.usual = body.winfo_reqwidth(), body.winfo_reqheight()
+        body.configure(width=self.usual[0], height=self.usual[1])
+        body.grid_propagate(False)
+        # Waiting for the size to settle belongs to the main window: a wait the window's
+        # closing cuts short then ends quietly (_fit() finds no window).
+        body.after, body.after_cancel = body._root().after, body._root().after_cancel
+        when_settled(body, self._fit)
+
+    # The board's size ------------------------------------------------------------------
+
+    def _fit(self):
+        """The window's size has settled: draw the board at the zoom its room now takes."""
+        if self.window is None:
+            return
+        zoom = self._zoom_for(self.body.winfo_width(), self.body.winfo_height())
+        if zoom != self.zoom:
+            self.zoom = zoom
+            self._draw_board()
+            self.show()
+
+    def _zoom_for(self, width, height):
+        """The board's zoom in a room of width x height pixels: the largest, in hundredths, at
+        which its canvases fit in what the room adds to the board's usual size; at least 1."""
+        extra_width, extra_height = width - self.usual[0], height - self.usual[1]
+        if extra_width <= 0 or extra_height <= 0:
+            return 1.0
+        first = self._sizes(1.0)
+        high = sum(canvas_height for _, canvas_height in first)
+        zoom = min([(canvas_width + extra_width) / canvas_width for canvas_width, _ in first]
+                   + [(high + extra_height) / high])
+        zoom = int(zoom * 100) / 100
+        while zoom > 1:
+            sizes = self._sizes(zoom)
+            if (all(canvas_width - usual_width <= extra_width
+                    for (canvas_width, _), (usual_width, _) in zip(sizes, first))
+                    and sum(canvas_height for _, canvas_height in sizes) - high <= extra_height):
+                return zoom
+            zoom = round(zoom - 0.01, 2)
+        return 1.0
+
+    def _px(self, size, zoom=None):
+        """A size in design pixels on the board at its zoom (or at zoom), in screen pixels."""
+        return round(size * scale(self.body) * (self.zoom if zoom is None else zoom))
+
+    def _font(self, zoom=None):
+        """The font of the board's texts at its zoom (or at zoom): the window's own at 1."""
+        zoom = self.zoom if zoom is None else zoom
+        default = tkfont.nametofont("TkDefaultFont", root=self.body)
+        if zoom == 1:
+            return default
+        points = round(default.actual("size") * zoom)
+        font = self._fonts.get(points)
+        if font is None:
+            font = self._fonts[points] = tkfont.Font(root=self.body,
+                                                     **dict(default.actual(), size=points))
+        return font
+
+    def _sizes(self, zoom):
+        """[(width, height)] of the displays', the LEDs' and the switches' canvases at zoom."""
+        size = lambda design: self._px(design, zoom)  # noqa: E731
+        line = size(2) + self._font(zoom).metrics("linespace")     # a text below, its gap
+        border = 2 * size(1) + size(PANEL_PADDING)
+        return [(2 * border + DISPLAY_COUNT * size(DIGIT[0]) + (DISPLAY_COUNT - 1) * size(DIGIT_GAP),
+                 2 * border + size(DIGIT[1]) + line),
+                (LED_COUNT * size(COLUMN), size(LED_SIZE) + line),
+                (SWITCH_COUNT * size(COLUMN), size(SLOT[1]) + line)]
+
+    def _draw_board(self):
+        """Draw the displays, the LEDs and the switches at the board's zoom, all dark and the
+        switches down; show() then shows what the board holds."""
+        font = self._font()
+        for canvas, (width, height) in zip((self.displays, self.leds, self.switches),
+                                           self._sizes(self.zoom)):
+            canvas.delete("all")
+            canvas.configure(width=width, height=height)
+        self._draw_displays(font)
+        self._draw_leds(font)
+        self._draw_switches(font)
         self._segments_shown = [0] * DISPLAY_COUNT      # as drawn: all dark, switches down
         self._leds_shown = 0
         self._switches_shown = 0
 
-    def _make_displays(self, group, font):
+    def _draw_displays(self, font):
         """The black panel of the six digits, HEX5 at the left, with their names below."""
-        width, height = px(group, DIGIT[0]), px(group, DIGIT[1])
-        stroke, space = px(group, STROKE), px(group, DIGIT_GAP)
-        ring, padding = px(group, 1), px(group, PANEL_PADDING)
+        canvas, size = self.displays, self._px
+        width, height = size(DIGIT[0]), size(DIGIT[1])
+        stroke, space = size(STROKE), size(DIGIT_GAP)
+        ring, padding = size(1), size(PANEL_PADDING)
         border = 2 * ring + padding                 # the panel's sunken bevel, then the padding
         panel_width = 2 * border + DISPLAY_COUNT * width + (DISPLAY_COUNT - 1) * space
         panel_height = 2 * border + height
-        line = font.metrics("linespace")
-        canvas = tk.Canvas(group, width=panel_width, height=panel_height + px(group, 2) + line,
-                           background=FACE, borderwidth=0, highlightthickness=0, takefocus=False)
-        canvas.pack()
         draw_bevel(canvas, 0, 0, panel_width, panel_height, rings=SUNKEN, face=PANEL)
         self.segment_items = []
         for column in range(DISPLAY_COUNT):
@@ -190,25 +279,22 @@ class LabSimWindow(ToolWindow):
                 canvas.create_polygon(*segment_corners(k, *box, stroke, ring), fill=DARK_SEGMENT,
                                       width=0)
                 for k in range(SEGMENT_COUNT)])
-            canvas.create_text(x + width / 2, panel_height + px(group, 2), anchor="n",
+            canvas.create_text(x + width / 2, panel_height + size(2), anchor="n",
                                text=f"HEX{display}", fill=TEXT, font=font)
-        return canvas
 
-    def _make_leds(self, group, font):
+    def _draw_leds(self, font):
         """The ten LEDs, LEDR9 at the left, each with its number below."""
-        column, size, ring = px(group, COLUMN), px(group, LED_SIZE), px(group, 1)
-        canvas = tk.Canvas(group, width=LED_COUNT * column,
-                           height=size + px(group, 2) + font.metrics("linespace"),
-                           background=FACE, borderwidth=0, highlightthickness=0, takefocus=False)
-        canvas.pack()
+        canvas = self.leds
+        column, size, ring = self._px(COLUMN), self._px(LED_SIZE), self._px(1)
+        half = ring // 2                # a ring's outline is centred on its box: inside the LED
         self.led_items = []
         for index in range(LED_COUNT):
             led = LED_COUNT - 1 - index
             x0 = index * column + (column - size) // 2
             for inset, (top_left, bottom_right) in enumerate(((SHADOW, HIGHLIGHT),
                                                               (DARK_SHADOW, LIGHT))):
-                box = (x0 + inset * ring, inset * ring, x0 + size - inset * ring,
-                       size - inset * ring)
+                edge = inset * ring + half
+                box = (x0 + edge, edge, x0 + size - edge, size - edge)
                 canvas.create_arc(*box, start=45, extent=180, style="arc", outline=top_left,
                                   width=ring)
                 canvas.create_arc(*box, start=225, extent=180, style="arc",
@@ -216,18 +302,14 @@ class LabSimWindow(ToolWindow):
             self.led_items.insert(0, canvas.create_oval(
                 x0 + 2 * ring, 2 * ring, x0 + size - 2 * ring, size - 2 * ring, fill=DARK_LED,
                 width=0))
-            canvas.create_text(index * column + column / 2, size + px(group, 2), anchor="n",
+            canvas.create_text(index * column + column / 2, size + self._px(2), anchor="n",
                                text=str(led), fill=TEXT, font=font)
-        return canvas
 
-    def _make_switches(self, group, font):
+    def _draw_switches(self, font):
         """The ten switches, SW9 at the left, each with its number below; all down."""
-        column, ring = px(group, COLUMN), px(group, 1)
-        width, height = px(group, SLOT[0]), px(group, SLOT[1])
-        canvas = tk.Canvas(group, width=SWITCH_COUNT * column,
-                           height=height + px(group, 2) + font.metrics("linespace"),
-                           background=FACE, borderwidth=0, highlightthickness=0, takefocus=False)
-        canvas.pack()
+        canvas = self.switches
+        column, ring = self._px(COLUMN), self._px(1)
+        width, height = self._px(SLOT[0]), self._px(SLOT[1])
         inner = height - 4 * ring
         self._travel = inner - inner // 2           # how far a knob moves when flipped
         for index in range(SWITCH_COUNT):
@@ -236,10 +318,8 @@ class LabSimWindow(ToolWindow):
             draw_bevel(canvas, x0, 0, x0 + width, height, rings=SUNKEN, face=SHADOW)
             draw_bevel(canvas, x0 + 2 * ring, 2 * ring + self._travel, x0 + width - 2 * ring,
                        height - 2 * ring, rings=RAISED, tags=(f"knob{switch}",))
-            canvas.create_text(index * column + column / 2, height + px(group, 2), anchor="n",
+            canvas.create_text(index * column + column / 2, height + self._px(2), anchor="n",
                                text=str(switch), fill=TEXT, font=font)
-        canvas.bind("<ButtonPress-1>", self._switch_clicked)
-        return canvas
 
     def _make_keys(self, group):
         """The four keys, KEY3 at the left."""
@@ -261,7 +341,7 @@ class LabSimWindow(ToolWindow):
 
     def _switch_clicked(self, event):
         self.switch_tip.hide()
-        index = int(event.x // px(self.switches, COLUMN))
+        index = int(event.x // self._px(COLUMN))
         if 0 <= index < SWITCH_COUNT:
             self.model.board.flip(SWITCH_COUNT - 1 - index)
             self._board_changed()
@@ -316,6 +396,14 @@ class LabSimWindow(ToolWindow):
             if moved >> switch & 1:
                 up = board.switches >> switch & 1
                 self.switches.move(f"knob{switch}", 0, -self._travel if up else self._travel)
+
+
+def _canvas(group):
+    """A canvas of the board, in the middle of its group box; _draw_board() draws it."""
+    canvas = tk.Canvas(group, background=FACE, borderwidth=0, highlightthickness=0,
+                       takefocus=False)
+    canvas.pack()
+    return canvas
 
 
 def segment_corners(k, left, top, right, bottom, stroke, space):

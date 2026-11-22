@@ -43,18 +43,21 @@ SAMPLE = "sorting.s"                    # the sample program of Home and Downloa
 DYNARMIC = "https://doi.org/10.1145/3787109.3815320"
 
 # The release the pages offer: its version and month, and its packages, in the order of the
-# Download page: (system, file, its size in bytes when it is on the release, else None).
-RELEASE = "1.0"
+# Download page: (system, file). The pages name no sizes: the packages of a release are built
+# from the same files as the pages.
+RELEASE = "1.1"
 RELEASE_MONTH = "November 2026"
 RELEASE_SHORT = "Nov. 2026"
 PACKAGES = (
-    ("Windows, one file", "ARES.exe", 15580334),
-    ("Windows, a folder", "ARES-windows.zip", 15461752),
-    ("macOS, Apple Silicon", "ARES-macos-arm64.zip", 17093790),
-    ("macOS, Intel", "ARES-macos-x86_64.zip", None),
-    ("Linux", "ARES-linux-x86_64.tar.gz", None),
+    ("Windows, one file", "ARES.exe"),
+    ("Windows, a folder", "ARES-windows.zip"),
+    ("macOS, Apple Silicon", "ARES-macos-arm64.zip"),
+    ("macOS, Intel", "ARES-macos-x86_64.zip"),
+    ("Linux", "ARES-linux-x86_64.tar.gz"),
 )
-RELEASED = tuple(name for _, name, release in PACKAGES if release)
+RELEASED = tuple(name for _, name in PACKAGES)
+# The release before, as the History page tells it.
+EARLIER = ("1.0", "November 2026", ("ARES.exe", "ARES-windows.zip", "ARES-macos-arm64.zip"))
 
 HELMET = "ares-helmet.png"              # the README's helmet, the 32 grid at 4x (128 pixels)
 SCREENSHOT = "screenshot.png"           # the README's picture of the window
@@ -69,13 +72,13 @@ FACE, TAB, TAB_BORDER, TITLE, NAVY = "#EEEEEE", "#C8DDF2", "#6382BF", "#B8CFE5",
 MAIN = (
     ("index.html", "Home", f"{APP_NAME} - {APP_FULL_NAME}",
      "ARES, the ARM Educational Simulator: an IDE for ARMv7 assembly language programming, "
-     "for teaching. Free and open source, for Windows and macOS."),
+     "for teaching. Free and open source, for Windows, macOS and Linux."),
     ("features.html", "Features", "ARES Features",
      "The features of ARES: an editor, run, step and backstep, breakpoints, editable registers "
      "and memory, system calls, the DE1-SoC's devices and teaching tools."),
     ("download.html", "Download", "Download ARES",
-     "Download ARES 1.0 for Windows or macOS: the packages, how to run each, the requirements "
-     "and the source code."),
+     f"Download ARES {RELEASE} for Windows, macOS or Linux: the packages, how to run each, "
+     "the requirements and the source code."),
     ("license.html", "License", "ARES License",
      "ARES is open-source software under the GNU General Public License, version 2 or later."),
     ("papers.html", "Papers", "ARES Papers",
@@ -99,7 +102,7 @@ HELP = (
     ("shortcuts.html", "Keyboard shortcuts", "Keyboard shortcuts",
      "The keyboard shortcuts of ARES: its commands, menus, register tables and Help window."),
     ("history.html", "History", "Release history",
-     "The release history of ARES: what release 1.0 contains."),
+     "The release history of ARES: what each release contains."),
     ("limits.html", "Limitations", "Limitations",
      "What ARES does not do, and the instructions its lists leave out."),
     ("acknowledgements.html", "Acknowledgements", "Acknowledgements",
@@ -110,13 +113,24 @@ HELP_TABS = {"intro.html": "Intro", "settings.html": "Settings", "syscalls.html"
              "ide.html": "IDE", "debugging.html": "Debugging",
              "shortcuts.html": "Keyboard shortcuts", "limits.html": "Limits",
              "acknowledgements.html": "Acknowledgements"}
-# The capture of each tool, in docs/images/tools/.
-TOOL_PICTURES = {"ARM X-Ray": "xray", "BHT Simulator": "bht", "Bitmap Display": "bitmap",
-                 "Data Cache Simulator": "cache", "Digital Lab Sim": "labsim",
-                 "Dynamic Instruction Counter": "counter",
-                 "Floating Point Representation": "fpr",
-                 "Keyboard and Display MMIO Simulator": "mmio",
-                 "Memory Reference Visualization": "memref"}
+# The capture of each tool, in docs/images/tools/; ARM X-Ray's is its film (FILM).
+TOOL_PICTURES = {"ARM X-Ray": "xray-film.gif", "BHT Simulator": "bht.png",
+                 "Bitmap Display": "bitmap.png", "Data Cache Simulator": "cache.png",
+                 "Digital Lab Sim": "labsim.png", "Dynamic Instruction Counter": "counter.png",
+                 "Floating Point Representation": "fpr.png",
+                 "Keyboard and Display MMIO Simulator": "mmio.png",
+                 "Memory Reference Visualization": "memref.png", "Pipeline Simulator": "pipeline.png"}
+TOOL_ALT = {"Pipeline Simulator": "The Pipeline Simulator after pipeline_tour.s, with forwarding "
+                                  "and 2-bit prediction: the reservation table, its stalls and "
+                                  "Flush rows, the branch lines, the cycles and the CPI"}
+# The moving picture of ARM X-Ray: real pictures of its window playing the film of one ADD.
+FILM = "images/tools/xray-film.gif"
+FILM_ALT = ("ARM X-Ray playing the film of ADD R2, R0, R1: the instruction is fetched and "
+            "decoded, R0 = 12 and R1 = 30 are read, the ALU adds them, and 42 is written into R2")
+# A window inside a block, under the film on the Tools page.
+INSIDE = ("images/tools/xray-alu.png",
+          "The window inside the ALU at the end of ADD R2, R0, R1: the adder takes 12 and 30 "
+          "and gives 42; the flags are kept")
 
 esc = html.escape
 
@@ -198,10 +212,6 @@ class Readme:
 
 def readme():
     return Readme((ROOT / "README.md").read_text(encoding="utf-8"))
-
-
-def size_text(size):
-    return f"{size / 1024 / 1024:.1f} MB"
 
 
 # Pieces of pages --------------------------------------------------------------------------------
@@ -367,8 +377,8 @@ OVERVIEW = (
     "Floating-point registers, and a bit-by-bit view of 32-bit floating-point numbers",
     "Runs at a speed you choose, one instruction at a time, and backwards",
     "System calls for text and number input and output, files and dialogs",
-    "Teaching tools in their own windows, such as the ARM X-Ray datapath animation and a data "
-    "cache simulator",
+    "Ten teaching tools in their own windows, such as the ARM X-Ray, which plays the film of "
+    "each instruction on the datapath, the Pipeline Simulator and a data cache simulator",
 )
 
 
@@ -394,8 +404,16 @@ def home():
 <p><a href="features.html">ARES features overview:</a></p>
 <ul>
 {overview}
-</ul>"""
+</ul>
+{film_part("")}"""
     return main_page("index.html", body)
+
+
+def film_part(root):
+    """The moving picture of ARM X-Ray, a link to itself at its full size."""
+    return (f'<p><a href="{root}help/tools.html#arm-x-ray">ARM X-Ray</a> playing the film of '
+            f'<code>ADD R2, R0, R1</code> (click it to see it at its full size):</p>\n'
+            f'<p><a href="{root}{FILM}">{picture(FILM, FILM_ALT, root, "film")}</a></p>')
 
 
 def features():
@@ -404,12 +422,12 @@ def features():
         ("breakpoints", "The Bkpt column of check boxes beside the instructions of the Text "
                         "Segment"),
         ("run-speed", "The Run speed slider, at its maximum: no interaction"),
-        ("xray", "The ARM X-Ray window: the single-cycle datapath with the paths in use in "
-                 "dark blue"),
+        ("xray", "The ARM X-Ray window at the end of ADD R2, R0, R1: the single-cycle "
+                 "datapath with the values on its wires, and the instruction's fields below"),
         ("tools-menu", "The Tools menu: ARM X-Ray, BHT Simulator, Bitmap Display, Data Cache "
                        "Simulator, Digital Lab Sim, Dynamic Instruction Counter, Floating Point "
                        "Representation, Keyboard and Display MMIO Simulator, Memory Reference "
-                       "Visualization and Memory Map"))}
+                       "Visualization, Pipeline Simulator and Memory Map"))}
     items = (
         "A window you work with the mouse, with an editor built in. These three buttons of the "
         "toolbar run the program, step one instruction, and step one instruction back.<br>"
@@ -429,9 +447,13 @@ def features():
         "random numbers and time",
         "The DE1-SoC computer's JTAG UART, and with the Digital Lab Sim its red LEDs, slide "
         "switches, push buttons and seven-segment displays",
-        "\"Tools\" for watching a program run, each in its own window, from the Tools menu. The "
-        "ARM X-Ray animates each instruction on a single-cycle ARM datapath.<br>"
+        "Ten \"Tools\" for watching a program run, each in its own window, from the Tools menu; "
+        "their windows can be resized. The ARM X-Ray plays the film of each instruction on a "
+        "single-cycle ARM datapath, step by step, and a click on a block opens the window inside "
+        "it. The Pipeline Simulator shows the program in a five-stage pipeline, with data "
+        "forwarding and branch prediction.<br>"
         + f'<span class="pair">{pictures["tools-menu"]} {pictures["xray"]}</span>',
+        "Message boxes of its own, in the look of the window, the same on every system",
         "A built-in Help that lists every instruction, pseudo-instruction and system call and "
         "explains the directives, and example programs under File &gt; Open Example",
     )
@@ -443,15 +465,9 @@ def features():
 def download():
     text = readme()
     table, notes = text.packages(), text.first_start()
-    rows = []
-    for system, name, release in PACKAGES:
-        if release:
-            rows.append(f'<tr><td><a class="button wide" href="{DOWNLOAD}{name}">Download '
-                        f'{esc(name)}</a></td><td>{esc(system)}: {markdown_words(table[name])}, '
-                        f'{size_text(release)}</td></tr>')
-        else:
-            rows.append(f"<tr><td><code>{esc(name)}</code></td><td>{esc(system)}: coming soon"
-                        f"</td></tr>")
+    rows = [f'<tr><td><a class="button wide" href="{DOWNLOAD}{name}">Download {esc(name)}</a>'
+            f'</td><td>{esc(system)}: {markdown_words(table[name])}</td></tr>'
+            for system, name in PACKAGES]
     options = (
         ("Option A: Windows, one file.",
          f"Put <code>ARES.exe</code> anywhere, the desktop for one, and double-click it. The "
@@ -462,7 +478,11 @@ def download():
          "time, Windows asks as it does for the one file."),
         ("Option C: macOS, Apple Silicon.",
          f"{markdown_words(notes['macOS'][0].upper() + notes['macOS'][1:])}"),
-        ("Option D: from the source code, with Python.",
+        ("Option D: macOS, Intel.",
+         "The same, with <code>ARES-macos-x86_64.zip</code>."),
+        ("Option E: Linux.",
+         f"{markdown_words(notes['Linux'][0].upper() + notes['Linux'][1:])}"),
+        ("Option F: from the source code, with Python.",
          "Install Python 3.11 or newer. In a copy of the source code run these commands, then "
          "run ARES with the command <b><code>.venv/bin/python -m ares</code></b>. On Windows "
          "write <code>py</code> for <code>python3</code> and <code>.venv\\Scripts\\python</code> "
@@ -477,9 +497,10 @@ def download():
 </table>
 {"".join(f'<p class="option"><b><i>{label}</i></b> <i>{words}</i></p>{chr(10)}'
          for label, words in options)}{commands}
-<p><b><i>ARES runs on Windows 10 or 11 (64-bit) and on macOS 12 or newer on Apple Silicon. The \
-GNU assembler and linker come with it: nothing else needs to be installed.</i></b> From the \
-source code it needs Python 3.11 or newer (on Linux 3.12 or newer, with <code>python3-tk</code>).</p>
+<p><b><i>ARES runs on Windows 10 or 11 (64-bit), on macOS 12 or newer (Apple Silicon or \
+Intel) and on 64-bit Linux with a desktop, such as Ubuntu 22.04 or newer. The GNU assembler and \
+linker come with it: nothing else needs to be installed.</i></b> From the source code it needs \
+Python 3.11 or newer (on Linux 3.12 or newer, with <code>python3-tk</code>).</p>
 <p><a href="{RELEASES}">All releases</a>, with the source code of the GNU assembler and linker and \
 of Unicorn that ARES includes.</p>
 <p>{sample_line()}</p>"""
@@ -541,8 +562,14 @@ def tools_help():
              blocks_html(blocks[1:]).replace("<h2>", f'<h2 id="{slug(common)}">', 1)]
     for name, make in tools:
         image = TOOL_PICTURES.get(name)
-        shot = (picture(f"images/tools/{image}.png", f"The {name} window", "../", "tool")
-                if image else "")
+        if name == "ARM X-Ray":
+            shot = (f'<a href="../{FILM}">{picture(FILM, FILM_ALT, "../", "film")}</a>\n'
+                    + picture(*INSIDE, "../", "tool"))
+        elif image:
+            shot = picture(f"images/tools/{image}", TOOL_ALT.get(name, f"The {name} window"),
+                           "../", "tool")
+        else:
+            shot = ""
         inner = blocks_html(make()).replace("<h2>", "<h3>").replace("</h2>", "</h3>")
         parts.append(f'<h2 id="{slug(name)}">{esc(name)}</h2>\n{shot}\n{inner}')
     return help_page("tools.html", "\n".join(parts))
@@ -553,23 +580,42 @@ def history():
     versions = dict(line.split("==") for line in
                     (ROOT / "requirements.txt").read_text(encoding="utf-8").split("\n")
                     if "==" in line)
+    tools = [name for name in TOOL_PICTURES if name != "Pipeline Simulator"]
+    tools = [name for name, _ in tool_entries() if name in tools]
+    version, month, files = EARLIER
     packages = ", ".join(f"<code>{name}</code>" for name in RELEASED)
-    body = f"""<p>ARES {RELEASE} was released in {RELEASE_MONTH}. It is the first release. \
-{esc(credits.FIRST_USED)} It contains:</p>
+    earlier = ", ".join(f"<code>{name}</code>" for name in files)
+    engines = (f"The GNU assembler and linker of the {esc(toolchain['name'])} "
+               f"{esc(toolchain['version'])}, the processor and memory of Unicorn "
+               f"{versions['unicorn']}, and the disassembler Capstone {versions['capstone']}.")
+    body = f"""<h2>Release {RELEASE}</h2>
+<p>ARES {RELEASE} was released in {RELEASE_MONTH}. It adds:</p>
+<ul>
+<li>The Pipeline Simulator, a tenth tool: the program in a five-stage pipeline, with its \
+reservation table, stalls and Flush rows, data forwarding, the stages that decide branches and \
+jumps, branch prediction, the CPI, and the NOPs a pipeline without stalls would need.</li>
+<li>A new ARM X-Ray: the film of each instruction, with buttons to play, pause, step forward \
+and back and skip to the end; a click on a block opens the window inside it; PUSH, POP, LDM, \
+STM, MUL and nearly every other instruction animate.</li>
+<li>ARES's own message boxes, and tool windows that can be resized.</li>
+<li>A new example, <code>pipeline_tour.s</code>, and a longer <code>xray_tour.s</code>.</li>
+<li>Packages on GitHub for Windows, macOS (Apple Silicon and Intel) and Linux: {packages}.</li>
+<li>{engines}</li>
+</ul>
+<h2>Release {version}</h2>
+<p>ARES {version} was released in {month}. It was the first release. \
+{esc(credits.FIRST_USED)} It contained:</p>
 <ul>
 <li>The editor, with several open files, syntax colours, find and replace, and the \
 capital-letters rule (Edit &gt; Capitalize Instructions).</li>
-<li>The GNU assembler and linker of the {esc(toolchain["name"])} \
-{esc(toolchain["version"])}, the processor and memory of Unicorn {versions["unicorn"]}, and the \
-disassembler Capstone {versions["capstone"]}.</li>
+<li>{engines}</li>
 <li>Run, step, backstep, pause, stop and reset, breakpoints, a run speed, and the registers, \
 floating-point registers, memory and labels.</li>
 <li>The system calls of the Syscalls page, and the DE1-SoC computer's JTAG UART.</li>
-<li>Nine tools: {esc(", ".join(name for name, _ in tool_entries() if name in TOOL_PICTURES))}; \
-and the Memory Map.</li>
+<li>Nine tools: {esc(", ".join(tools))}; and the Memory Map.</li>
 <li>The Help, with every instruction, pseudo-instruction and system call, the directives, and \
 example programs under File &gt; Open Example.</li>
-<li>Packages on GitHub: {packages}.</li>
+<li>Packages on GitHub: {earlier}.</li>
 </ul>"""
     return help_page("history.html", body)
 
@@ -641,6 +687,8 @@ body.help th, body.help td {{ border: 1px solid #999999; padding: 2px 6px; text-
 body.help th {{ background: {TAB}; }}
 .tool {{ display: block; width: auto; max-width: min(100%, 600px); border: 1px solid #999999;
   margin: 0.5em 0; box-sizing: border-box; }}
+.film {{ display: block; width: auto; max-width: 100%; border: 1px solid #999999;
+  box-sizing: border-box; }}
 body.help h3 {{ font-size: 1em; margin: 1.2em 0 0.4em; }}
 .contents {{ text-align: center; }}
 

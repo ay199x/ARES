@@ -11,6 +11,7 @@ from typing import Optional
 from capstone import CS_ARCH_ARM, CS_MODE_ARM, CS_OPT_SYNTAX_NOREGNAME, Cs
 
 from .program import INSTRUCTION_SIZE
+from .tokens import COMMENT, LABEL_DEF, tokenize
 
 TAB_SIZE = 4                # columns per tab when the Source column shows a line
 
@@ -118,12 +119,46 @@ class SourceColumn:
         shown = [line for address, line in program.lines.items()
                  if 1 <= line <= len(self.lines) and program.is_code(address)]
         self.digits = len(str(max(shown, default=0)))
+        self._statements = None         # written() of every line, made when first asked
 
     def text(self, line, tab_size=TAB_SIZE):
         """The text for line number line, tabs expanded; "" for None or a line not in the source."""
         if line is None or not 1 <= line <= len(self.lines):
             return ""
         return f"{line:>{self.digits}}: {self.lines[line - 1].expandtabs(tab_size).rstrip()}"
+
+    def written(self, line):
+        """The statement on line number line as the student wrote it: the line without its
+        comment and the labels it defines, one space wherever blanks part two pieces; "" for
+        None, a line not in the source or a line without a statement."""
+        if line is None or not 1 <= line <= len(self.lines):
+            return ""
+        if self._statements is None:
+            self._statements = [_statement(text, pieces) for text, pieces
+                                in zip(self.lines, tokenize("\n".join(self.lines)))]
+        return self._statements[line - 1]
+
+
+def _statement(text, pieces):
+    """text without its comments and label definitions (pieces: its tokens)."""
+    kept, end = [], None
+    for piece in pieces:
+        if piece.kind in (COMMENT, LABEL_DEF):
+            continue
+        if kept and piece.start > end:
+            kept.append(" ")
+        kept.append(text[piece.start:piece.end])
+        end = piece.end
+    return "".join(kept)
+
+
+def written(program, sources, address):
+    """The instruction at address as the student wrote it, where the Source column shows its
+    line (SourceColumn.written()); None elsewhere: data, code without a source line, the
+    second word of a line that makes two, or no source (sources None)."""
+    if sources is None:
+        return None
+    return sources.written(program.line_at(address)) or None
 
 
 def text_columns(text):

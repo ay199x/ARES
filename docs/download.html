@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Download ARES</title>
-<meta name="description" content="Download ARES 1.0 for Windows or macOS: the packages, how to run each, the requirements and the source code.">
+<meta name="description" content="Download ARES 1.1 for Windows, macOS or Linux: the packages, how to run each, the requirements and the source code.">
 <link rel="canonical" href="https://ay199x.github.io/ARES/download.html">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ARES">
 <meta property="og:title" content="Download ARES">
-<meta property="og:description" content="Download ARES 1.0 for Windows or macOS: the packages, how to run each, the requirements and the source code.">
+<meta property="og:description" content="Download ARES 1.1 for Windows, macOS or Linux: the packages, how to run each, the requirements and the source code.">
 <meta property="og:url" content="https://ay199x.github.io/ARES/download.html">
 <meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
 <meta property="og:image:width" content="1200">
@@ -37,22 +37,24 @@
 </ul>
 </nav>
 <main class="content">
-<h1>Download ARES <span class="version">V1.0, Nov. 2026</span></h1>
+<h1>Download ARES <span class="version">V1.1, Nov. 2026</span></h1>
 <table class="packages">
-<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES.exe">Download ARES.exe</a></td><td>Windows, one file: Windows 10 or 11, 64-bit: one file to run, 14.9 MB</td></tr>
-<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES-windows.zip">Download ARES-windows.zip</a></td><td>Windows, a folder: the same as a folder, with the example programs beside it, 14.7 MB</td></tr>
-<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES-macos-arm64.zip">Download ARES-macos-arm64.zip</a></td><td>macOS, Apple Silicon: macOS 12 or newer, Apple Silicon, 16.3 MB</td></tr>
-<tr><td><code>ARES-macos-x86_64.zip</code></td><td>macOS, Intel: coming soon</td></tr>
-<tr><td><code>ARES-linux-x86_64.tar.gz</code></td><td>Linux: coming soon</td></tr>
+<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES.exe">Download ARES.exe</a></td><td>Windows, one file: Windows 10 or 11, 64-bit: one file to run</td></tr>
+<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES-windows.zip">Download ARES-windows.zip</a></td><td>Windows, a folder: the same as a folder, with the example programs beside it</td></tr>
+<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES-macos-arm64.zip">Download ARES-macos-arm64.zip</a></td><td>macOS, Apple Silicon: macOS 12 or newer, Apple Silicon</td></tr>
+<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES-macos-x86_64.zip">Download ARES-macos-x86_64.zip</a></td><td>macOS, Intel: macOS 12 or newer, Intel</td></tr>
+<tr><td><a class="button wide" href="https://github.com/ay199x/ARES/releases/latest/download/ARES-linux-x86_64.tar.gz">Download ARES-linux-x86_64.tar.gz</a></td><td>Linux: 64-bit Linux with a desktop, such as Ubuntu 22.04 or newer</td></tr>
 </table>
 <p class="option"><b><i>Option A: Windows, one file.</i></b> <i>Put <code>ARES.exe</code> anywhere, the desktop for one, and double-click it. The first time, in the SmartScreen message, choose <b>More info &gt; Run anyway</b>.</i></p>
 <p class="option"><b><i>Option B: Windows, a folder.</i></b> <i>Unzip <code>ARES-windows.zip</code> where you like, then double-click <code>ARES.exe</code> in the folder; the example programs are beside it. The first time, Windows asks as it does for the one file.</i></p>
 <p class="option"><b><i>Option C: macOS, Apple Silicon.</i></b> <i>Unzip the file and open ARES once, then choose <b>Open Anyway</b> in <b>System Settings &gt; Privacy &amp; Security</b> (on macOS 12: <b>System Preferences &gt; Security &amp; Privacy</b>).</i></p>
-<p class="option"><b><i>Option D: from the source code, with Python.</i></b> <i>Install Python 3.11 or newer. In a copy of the source code run these commands, then run ARES with the command <b><code>.venv/bin/python -m ares</code></b>. On Windows write <code>py</code> for <code>python3</code> and <code>.venv\Scripts\python</code> for <code>.venv/bin/python</code>. <a href="https://github.com/ay199x/ARES#building-from-source">Building from source</a> also makes the packages.</i></p>
+<p class="option"><b><i>Option D: macOS, Intel.</i></b> <i>The same, with <code>ARES-macos-x86_64.zip</code>.</i></p>
+<p class="option"><b><i>Option E: Linux.</i></b> <i>Unpack the file with <code>tar -xzf ARES-linux-x86_64.tar.gz</code>, then start <code>ARES/ARES</code>.</i></p>
+<p class="option"><b><i>Option F: from the source code, with Python.</i></b> <i>Install Python 3.11 or newer. In a copy of the source code run these commands, then run ARES with the command <b><code>.venv/bin/python -m ares</code></b>. On Windows write <code>py</code> for <code>python3</code> and <code>.venv\Scripts\python</code> for <code>.venv/bin/python</code>. <a href="https://github.com/ay199x/ARES#building-from-source">Building from source</a> also makes the packages.</i></p>
 <pre>python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python tools/fetch_toolchain.py</pre>
-<p><b><i>ARES runs on Windows 10 or 11 (64-bit) and on macOS 12 or newer on Apple Silicon. The GNU assembler and linker come with it: nothing else needs to be installed.</i></b> From the source code it needs Python 3.11 or newer (on Linux 3.12 or newer, with <code>python3-tk</code>).</p>
+<p><b><i>ARES runs on Windows 10 or 11 (64-bit), on macOS 12 or newer (Apple Silicon or Intel) and on 64-bit Linux with a desktop, such as Ubuntu 22.04 or newer. The GNU assembler and linker come with it: nothing else needs to be installed.</i></b> From the source code it needs Python 3.11 or newer (on Linux 3.12 or newer, with <code>python3-tk</code>).</p>
 <p><a href="https://github.com/ay199x/ARES/releases">All releases</a>, with the source code of the GNU assembler and linker and of Unicorn that ARES includes.</p>
 <p><i>A sample program to try in ARES, one of its examples:</i> <a href="https://github.com/ay199x/ARES/blob/main/examples/sorting.s">sorting.s</a></p>
 </main>

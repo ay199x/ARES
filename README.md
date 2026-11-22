@@ -13,8 +13,11 @@ ARES is a desktop program for writing, assembling, running and debugging ARMv7 a
 - The GNU assembler and linker included; the assembler runs with CPUlator's options.
 - Run, step, backstep and breakpoints, with views of the registers, the floating-point registers, memory and labels.
 - System calls for text and number input and output, files and dialogs, and the DE1-SoC's JTAG UART.
-- Teaching tools, each in its own window: the ARM X-Ray (an animated single-cycle datapath), the Dynamic Instruction Counter, a Data Cache Simulator, Memory Reference Visualization, a Bitmap Display, Floating Point Representation, a BHT Simulator, a Keyboard and Display MMIO Simulator and the Digital Lab Sim.
+- Ten teaching tools, each in its own window that can be resized: the ARM X-Ray (the film of each instruction on a single-cycle datapath, step by step, with the windows inside its blocks), the Dynamic Instruction Counter, a Data Cache Simulator, Memory Reference Visualization, a Bitmap Display, Floating Point Representation, a BHT Simulator, a Keyboard and Display MMIO Simulator, the Digital Lab Sim and the Pipeline Simulator (a five-stage pipeline with forwarding and branch prediction).
+- Message boxes of its own, the same on every system.
 - A built-in Help listing every instruction, pseudo-instruction and system call, and example programs under File > Open Example.
+
+![ARM X-Ray playing the film of ADD R2, R0, R1](docs/images/tools/xray-film.gif)
 
 ## Download
 Get the latest version from the [Releases page](https://github.com/ay199x/ARES/releases/latest).
@@ -24,13 +27,14 @@ Get the latest version from the [Releases page](https://github.com/ay199x/ARES/r
 | `ARES.exe` | Windows 10 or 11, 64-bit: one file to run |
 | `ARES-windows.zip` | the same as a folder, with the example programs beside it |
 | `ARES-macos-arm64.zip` | macOS 12 or newer, Apple Silicon |
+| `ARES-macos-x86_64.zip` | macOS 12 or newer, Intel |
+| `ARES-linux-x86_64.tar.gz` | 64-bit Linux with a desktop, such as Ubuntu 22.04 or newer |
 
-Packages for Linux and for Intel Macs will follow on the same page; until then, run ARES from source (see below).
-
-ARES is not signed, so the first time you start it, your system asks:
+ARES is not signed, so the first time you start it, Windows and macOS ask whether to trust it:
 
 - **Windows:** in the SmartScreen message, choose **More info > Run anyway**.
 - **macOS:** unzip the file and open ARES once, then choose **Open Anyway** in **System Settings > Privacy & Security** (on macOS 12: **System Preferences > Security & Privacy**).
+- **Linux:** unpack the file with `tar -xzf ARES-linux-x86_64.tar.gz`, then start `ARES/ARES`.
 
 ## A first program
 
@@ -59,7 +63,7 @@ python3 -m venv .venv
 .venv/bin/python tools/build.py
 ```
 
-On Windows write `py` for `python3` and `.venv\Scripts\python` for `.venv/bin/python`. `tools/build.py` fetches the GNU assembler and linker, runs the tests and leaves the packages in `dist`. To run ARES without building it: `.venv/bin/python tools/fetch_toolchain.py`, then `.venv/bin/python -m ares`.
+On Windows write `py` for `python3` and `.venv\Scripts\python` for `.venv/bin/python`. `tools/build.py` fetches the GNU assembler and linker, runs the tests (`--skip-tests` leaves them out) and leaves the packages in `dist`. To run ARES without building it: `.venv/bin/python tools/fetch_toolchain.py`, then `.venv/bin/python -m ares`.
 
 ## Why ARES
 MARS made MIPS assembly easy to learn, but ARM had nothing like it, and the closest, CPUlator, is hard for beginners. ARES is an easy simulator for ARMv7 that university labs can use. Ares is the Greek name of the god the Romans called Mars, so ARES and MARS mean the same thing in two languages.

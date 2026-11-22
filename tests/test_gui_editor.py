@@ -18,21 +18,36 @@ from test_gui_app import TITLE
 from ares import capitals
 from ares.gui import app as app_module
 from ares.gui import editor as editor_module
+from ares.gui import msgbox
 from ares.gui.editor import (CURRENT_LINE_BACKGROUND, ERROR_TAG, GUTTER_BACKGROUND,
                              LINE_NUMBER_COLOUR, decode, same_file)
 from ares.gui.find import replace_all
 from ares.settings import DEFAULT_SIZE, Settings
 
 
+def save_question(name):
+    """The text of ARES's question before the changes to the file called name are lost."""
+    return (f"Changes to {name} will be lost unless you save.  Do you wish to save all changes "
+            "now?")
+
+
 @pytest.fixture
-def answers(monkeypatch):
-    """Scripted answers for the window's questions; records what was asked."""
+def answers(monkeypatch, message_boxes):
+    """Scripted answers for the window's questions; records what was asked.
+
+    The question whether to save changes takes the next of "save_changes":
+    True (Yes), False (No) or None (Cancel). An error is answered with OK.
+    """
     asked = []
     replies = {"save_changes": [], "save_as": [], "open": []}
 
-    def ask_save(*args, **options):
-        asked.append(("save_changes", args[1]))
-        return replies["save_changes"].pop(0)
+    def box(shown):
+        if shown.title == msgbox.SAVE_CHANGES:
+            asked.append(("save_changes", shown.text))
+            return {True: msgbox.YES, False: msgbox.NO,
+                    None: msgbox.CANCEL}[replies["save_changes"].pop(0)]
+        asked.append((shown.kind, shown.text))
+        return msgbox.OK
 
     def ask_path(**options):
         asked.append(("save_as", options.get("initialfile")))
@@ -42,11 +57,9 @@ def answers(monkeypatch):
         asked.append(("open", None))
         return replies["open"].pop(0)
 
-    monkeypatch.setattr(app_module.messagebox, "askyesnocancel", ask_save)
+    message_boxes.responder = box
     monkeypatch.setattr(app_module.filedialog, "asksaveasfilename", ask_path)
     monkeypatch.setattr(app_module.filedialog, "askopenfilenames", ask_open)
-    monkeypatch.setattr(app_module.messagebox, "showerror",
-                        lambda *args, **options: asked.append(("error", args[1])))
     replies["asked"] = asked
     return replies
 
@@ -247,8 +260,9 @@ def test_save_writes_the_file_directly_where_no_new_file_can_be_made(app, no_new
     app.cmd_new()
     answers["save_as"].append(str(no_new_files / "new.s"))
     assert app.save_as(app.editor.current) is False
-    assert answers["asked"][-1] == ("error", f"Cannot save {no_new_files / 'new.s'}:\n"
-                                             "Permission denied")
+    assert answers["asked"][-1] == ("error", "Save As operation could not be completed due to an "
+                                             f"error:\n{no_new_files / 'new.s'} (Permission "
+                                             "denied)")
     assert sorted(os.listdir(no_new_files)) == ["f.s"]
 
 
@@ -367,7 +381,7 @@ def test_close_asks_about_unsaved_changes(app, tmp_path, answers):
     assert app.editor.tabs == [tab]
     app.cmd_close()                         # No: closed, file unchanged
     assert app.editor.tabs == [] and path.read_bytes() == b"NOP\n"
-    assert answers["asked"] == [("save_changes", "Save changes to f.s?")] * 2
+    assert answers["asked"] == [("save_changes", save_question("f.s"))] * 2
 
 
 def test_close_with_yes_saves_first(app, tmp_path, answers):

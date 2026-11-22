@@ -246,6 +246,9 @@ class FloatWindow(ToolWindow):
     of them are all on one canvas, placed from the fonts' sizes. Enter in a
     field, or the keyboard focus leaving it for another part of ARES, applies
     what was typed; a wrong entry rings the bell and stays, with the focus.
+
+    In a larger window everything keeps its size, in the middle: the fields
+    are typed into, and the picture is drawn to their characters.
     """
 
     NAME = "Floating Point Representation"
@@ -300,6 +303,7 @@ class FloatWindow(ToolWindow):
         self.register_box.pack(side="left", padx=(gap, 0))
         self.register_box.bind("<<ComboboxSelected>>", self._chosen)
         self.register_tip = Tooltip(self.register_box, REGISTER_TIP)
+        body.grid_anchor("center")      # a larger window: all of it in the middle, its size
         window.bind("<Destroy>", self._destroyed, add="+")
 
     def _lay_out(self):

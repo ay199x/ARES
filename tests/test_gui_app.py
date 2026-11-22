@@ -2,18 +2,19 @@
 # Copyright (c) 2026 The ARES Project
 """The main window: layout, menus, shortcuts, toolbar, states and title."""
 
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 import pytest
-from conftest import VIRTUAL_DISPLAY, press_key, use_test_clipboard
+from conftest import VIRTUAL_DISPLAY, Box, press_key, use_test_clipboard
 
 from ares.gui import app as app_module
+from ares.gui import msgbox
 from ares.gui.app import MAX_SPEED, App
 from ares.gui.widgets import SHORTCUT_TAG
 from ares.gui.table import MARK_OFF, STRIPE, off_colour
 from ares.settings import Settings
 
-TITLE = "ARES 1.0"      # the window's title while no file is open
+TITLE = "ARES 1.1"      # the window's title while no file is open
 
 
 def tab_titles(notebook):
@@ -58,23 +59,28 @@ EXPECTED_MENUS = {
               ("Digital Lab Sim", ""), ("Dynamic Instruction Counter", ""),
               ("Floating Point Representation", ""),
               ("Keyboard and Display MMIO Simulator", ""),
-              ("Memory Reference Visualization", ""), "-", ("Memory Map", "")],
+              ("Memory Reference Visualization", ""), ("Pipeline Simulator", ""), "-",
+              ("Memory Map", "")],
     "Help": [("Help", ""), ("About ARES", "")],
 }
 
 
 def test_the_title_has_the_version_and_no_full_name(make_app):
     app = make_app()
-    assert app.root.title() == "ARES 1.0"
+    assert app.root.title() == "ARES 1.1"
     assert "Educational" not in app.root.title()
 
 
-def test_no_test_can_show_a_window(app, monkeypatch, hidden_windows):
-    # Not even after monkeypatch.undo(), which once let a real message box appear.
+def test_no_test_can_show_a_window(app, monkeypatch, hidden_windows, message_boxes):
+    # Not even after monkeypatch.undo(), which once let a real message box appear: neither the
+    # system's message box nor ARES's own, which would wait for an answer.
     monkeypatch.setattr(app.root, "title", app.root.title)
     monkeypatch.undo()
     with pytest.raises(AssertionError, match="would open"):
-        app_module.messagebox.askyesnocancel("ARES", "Save changes?", parent=app.root)
+        messagebox.askyesnocancel("ARES", "Save changes?", parent=app.root)
+    with pytest.raises(AssertionError, match="would wait"):
+        msgbox.ask_save(app.root, "f.s")
+    assert msgbox.show == message_boxes.show
     app.root.deiconify()
     app.root.update()
     assert (VIRTUAL_DISPLAY or not app.root.winfo_ismapped()) and hidden_windows.shows(app.root)
@@ -239,13 +245,13 @@ def test_title_and_tab_show_the_file_and_unsaved_changes(app):
 
 def test_the_title_names_the_file_on_top(app, tmp_path):
     # The program's name, then the file's while one is open, * while unsaved.
-    assert app.root.title() == "ARES 1.0"
+    assert app.root.title() == "ARES 1.1"
     (tmp_path / "hello.s").write_text("NOP\n")
     (tmp_path / "fact.s").write_text("NOP\n")
     first = app.open_path(tmp_path / "hello.s")
-    assert app.root.title() == "hello.s - ARES 1.0"
+    assert app.root.title() == "hello.s - ARES 1.1"
     first.text.insert("1.0", "X")
-    assert app.root.title() == "hello.s* - ARES 1.0"
+    assert app.root.title() == "hello.s* - ARES 1.1"
     second = app.open_path(tmp_path / "fact.s")
     assert app.root.title() == f"fact.s - {TITLE}"
     app.editor.select(first)
@@ -260,14 +266,15 @@ def test_the_title_names_the_file_on_top(app, tmp_path):
     assert app.root.title() == TITLE
 
 
-def test_the_message_boxes_keep_the_short_title(app, monkeypatch):
-    titles = []
-    monkeypatch.setattr(app_module.messagebox, "askyesnocancel",
-                        lambda title, message, **options: titles.append(title))   # Cancel
+def test_the_save_question_says_in_its_title_what_it_asks(app, message_boxes):
     app.cmd_new()
     app.editor.current.text.insert("1.0", "x")
+    message_boxes.answer("cancel")
     app.cmd_close()
-    assert titles == ["ARES"] and len(app.editor.tabs) == 1
+    assert message_boxes.shown == [Box(
+        "warning", "Save program changes?", "Changes to untitled1.s will be lost unless you "
+        "save.  Do you wish to save all changes now?", ("yes", "no", "cancel"), 0, True)]
+    assert len(app.editor.tabs) == 1
 
 
 def test_speed_slider_label(app):
@@ -466,14 +473,14 @@ def test_the_find_window_shows_its_match_in_the_edit_tab(app):
     assert tab.text.get("sel.first", "sel.last") == "SVC"
 
 
-def test_opening_a_folder_says_it_is_a_folder(app, tmp_path, monkeypatch):
-    errors = []
-    monkeypatch.setattr(app_module.messagebox, "showerror",
-                        lambda title, message, **options: errors.append(message))
+def test_opening_a_folder_says_it_is_a_folder(app, tmp_path, message_boxes):
     folder = tmp_path / "lab1"
     folder.mkdir()
+    message_boxes.answer("ok")
     assert app.open_path(folder) is None        # Windows itself says "Permission denied"
-    assert errors == [f"{folder} is a folder, not a file."] and app.editor.tabs == []
+    assert [(box.kind, box.title, box.text) for box in message_boxes.shown] == [
+        ("error", "Cannot open file", f"{folder} is a folder, not a file.")]
+    assert app.editor.tabs == []
 
 
 def test_failing_commands_in_read_only_panes_do_not_stop_the_window(app):

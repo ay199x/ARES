@@ -10,6 +10,7 @@ from test_gui_assemble import assemble
 from test_gui_look import RETURN_KEYS, tab_cycle
 from test_gui_run import go_to_end, loaded, max_speed, slow
 from test_responsiveness import pictures
+from window_layout import at_size, clashes
 
 from ares.gui.tools import bht
 from ares.gui.tools.bht import (FIELDS, LOG_LIMIT, NEXT_COLOUR, RIGHT_COLOUR, WRONG_COLOUR,
@@ -297,11 +298,45 @@ def test_the_table_has_room_for_16_rows_and_every_column(app, entries):
     assert height // table.row_height == bht.VISIBLE_ROWS == 16
 
 
+def laid_out_sizes(window):
+    """((width, height) of the table, (width, height) of the log's page) as laid out."""
+    table, page = window.table, window.log.master
+    return ((table.winfo_width(), table.winfo_height()),
+            (page.winfo_width(), page.winfo_height()))
+
+
+@pytest.mark.parametrize("entries", ["16", "32"])
+def test_a_larger_window_gives_its_room_to_the_table_and_the_log(app, entries):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), the table and the log grow: the table in height only while it has more entries
+    than it shows, then until it shows every entry; nothing clashes at either size."""
+    window = simulator(app)
+    top = window.window
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    choose(window, 0, entries)
+    assert window.min_size() == least
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        assert clashes(part) == [], size
+        sizes[size] = laid_out_sizes(window), window.table.page
+    ((table, log), page), ((big_table, big_log), big_page) = sizes[least], sizes[large]
+    assert page == bht.VISIBLE_ROWS
+    assert big_table[0] > table[0] and big_log[0] > log[0] and big_log[1] > log[1]
+    if entries == "32":
+        assert big_table[1] > table[1] and big_page >= 32
+    else:
+        assert big_table[1] == table[1]
+
+
 def test_the_help_text(app):
     window = simulator(app)
     text = paragraphs(window.HELP)
     for words in ("Number of entries", "History bits", "Initial prediction", "BNE", "Reset",
-                  "light yellow", "1,000"):
+                  "light yellow", "1,000", "larger or maximized: the table and the log grow"):
         assert words in text, words
     assert "\n\n" in text
 

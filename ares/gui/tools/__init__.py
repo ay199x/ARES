@@ -32,6 +32,7 @@ TOOLS = [
     Tool("tool_fpr", "&Floating Point Representation", "fpr"),
     Tool("tool_mmio", "&Keyboard and Display MMIO Simulator", "mmio"),
     Tool("tool_memref", "Memory &Reference Visualization", "memref"),
+    Tool("tool_pipeline", "&Pipeline Simulator", "pipeline"),
 ]
 COMMANDS = {tool.command: tool for tool in TOOLS}
 # The Tools menu, as the entries of ares.gui.app.MENUS: (command, label, shortcut); None

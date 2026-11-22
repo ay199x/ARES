@@ -3,6 +3,7 @@
 """The website in docs/, made by tools/make_site.py: it is up to date, its links and downloads work,
 its Help & Info pages say what ARES's Help says, and other names stand only where they may."""
 
+import html
 import importlib.util
 import json
 import re
@@ -20,12 +21,12 @@ from ares.gui.menubar import access_letter
 from ares.syscalls import SERVICES
 
 DOCS = ROOT / "docs"
-_spec = importlib.util.spec_from_file_location("make_site", ROOT / "tools" / "make_site.py")
-site = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(site)
-_build_spec = importlib.util.spec_from_file_location("build_tool", ROOT / "tools" / "build.py")
-build_tool = importlib.util.module_from_spec(_build_spec)
-_build_spec.loader.exec_module(build_tool)
+_site_source = importlib.util.spec_from_file_location("make_site", ROOT / "tools" / "make_site.py")
+site = importlib.util.module_from_spec(_site_source)
+_site_source.loader.exec_module(site)
+_build_source = importlib.util.spec_from_file_location("build_tool", ROOT / "tools" / "build.py")
+build_tool = importlib.util.module_from_spec(_build_source)
+_build_source.loader.exec_module(build_tool)
 
 MAIN = [name for name, *_ in site.MAIN]
 HELP = [f"help/{name}" for name, *_ in site.HELP]
@@ -146,6 +147,15 @@ def icon_frames(path):
     return frames
 
 
+# Pages that keep a former text until docs/ is made again for a release: none now.
+REMADE_AT_RELEASE = set()
+# Tools added since docs/ was made, which its Tools page has once it is made again: none now.
+NOT_ON_THE_SITE_YET = set()
+# The sentences of ares/credits.py that name the tools ARM X-Ray and the Pipeline Simulator follow:
+# the Tools page holds them, as the tools' help does, and no other name of those programs.
+CREDIT_SENTENCES = (credits.XRAY_ORIGIN, credits.XRAY_SYSTEM, credits.PIPELINE_ORIGIN)
+
+
 def test_the_site_builds_and_docs_holds_what_the_script_makes(fresh):
     out, written = fresh
     assert {*PAGES, "style.css", ".nojekyll", "favicon.ico", "images/preview.png"} <= set(written)
@@ -161,7 +171,7 @@ def test_the_site_builds_and_docs_holds_what_the_script_makes(fresh):
         elif place.endswith(".ico"):
             if icon_frames(made) != icon_frames(kept):
                 stale.append(place)
-        elif made.read_bytes() != kept.read_bytes():
+        elif made.read_bytes() != kept.read_bytes() and place not in REMADE_AT_RELEASE:
             stale.append(place)
     assert not stale, f"docs/ is out of date, run python tools/make_site.py: {stale}"
 
@@ -371,24 +381,27 @@ def test_every_download_names_a_file_of_the_release_once():
 
 def test_the_release_files_are_the_readmes_and_the_packages_the_build_makes():
     assert set(site.readme().packages()) == set(site.RELEASED)
-    assert {name for _, name, _ in site.PACKAGES} == {"ARES.exe", *build_tool.ARCHIVES.values()}
+    assert {name for _, name in site.PACKAGES} == {"ARES.exe", *build_tool.ARCHIVES.values()}
+    assert site.RELEASED == tuple(name for _, name in site.PACKAGES)   # every package, now
 
 
 def test_download_has_each_package_its_options_and_requirements():
     text = read("download.html")
     page = Page(text)
     notes = site.readme().first_start()
-    for system, name, release in site.PACKAGES:
-        if release:
-            assert site.size_text(release) in page.text
-        else:
-            assert f"{name} {system}: coming soon" in page.text
+    for system, name in site.PACKAGES:
+        assert f"Download {name} {system}: " in page.text
+    assert "coming soon" not in page.text and " MB" not in page.text      # no sizes: see PACKAGES
     for option in ("Option A: Windows, one file.", "Option B: Windows, a folder.",
-                   "Option C: macOS, Apple Silicon.", "Option D: from the source code, with "
-                   "Python."):
+                   "Option C: macOS, Apple Silicon.", "Option D: macOS, Intel.",
+                   "Option E: Linux.", "Option F: from the source code, with Python."):
         assert option in page.text
+    for system in ("Windows 10 or 11", "macOS 12 or newer (Apple Silicon or Intel)",
+                   "64-bit Linux with a desktop"):
+        assert system in page.text
     for note in notes.values():
         bare = re.sub(r"\*\*([^*]+)\*\*", r"\1", note)
+        bare = re.sub(r"`([^`]+)`", r"\1", bare)               # code as plain text
         assert bare[1:] in page.text
     assert f"V{site.RELEASE}, {site.RELEASE_SHORT}" in page.text
     assert any(link == site.RELEASES for _, link in links())
@@ -422,6 +435,8 @@ def test_papers_shows_the_credits_then_the_published_paper_as_a_paragraph():
 
 @pytest.mark.parametrize("name,tab", list(site.HELP_TABS.items()))
 def test_a_help_page_says_what_the_help_window_says(name, tab):
+    if f"help/{name}" in REMADE_AT_RELEASE:
+        pytest.skip("the page keeps the former text until it is made again")
     page = parsed(f"help/{name}")
     in_order(page.text, block_words(page_blocks(tab, MENUS, label_of)), tab)
 
@@ -433,16 +448,43 @@ def test_the_tools_page_has_every_tool_the_x_ray_first_with_its_picture():
     order = [name for name, _ in site.tool_order()]
     assert order[1] == "ARM X-Ray" and sorted(order) == sorted(name for name, _ in entries)
     in_order(page.text, block_words(site.tool_order()[0][1]()), order[0])
+    order = [name for name in order if name not in NOT_ON_THE_SITE_YET]
     for name, make in site.tool_order()[1:]:
+        if name in NOT_ON_THE_SITE_YET:
+            continue
         start = text.rindex("<h2", 0, text.index(f'id="{site.slug(name)}"'))
         part = Page("<main>" + text[start:] + "</main>").text
         assert part.startswith(f"{name} "), name
+        if "help/tools.html" in REMADE_AT_RELEASE:
+            continue                    # the page keeps the former texts until it is made again
         in_order(part, block_words(make()), name)
     places = [text.index(f'id="{site.slug(name)}"') for name in order]
     assert places == sorted(places)
     for name, image in site.TOOL_PICTURES.items():
-        assert f"images/tools/{image}.png" in text
+        assert f"images/tools/{image}" in text
+    assert len(site.TOOL_PICTURES) == 10 and set(site.TOOL_PICTURES) < set(order)
+    x_ray = text[text.index('id="arm-x-ray"'):text.index(f'id="{site.slug(order[2])}"')]
+    assert f'<a href="../{site.FILM}"><img class="film" src="../{site.FILM}"' in x_ray
+    assert site.INSIDE[0] in x_ray
     assert "Choose one on the left" not in page.text
+
+
+def test_the_home_page_shows_the_film_of_the_x_ray_linked_to_itself():
+    text = read("index.html")
+    assert f'<a href="{site.FILM}"><img class="film" src="{site.FILM}"' in text
+    assert "Ten teaching tools" in Page(text).text
+
+
+def test_the_film_is_a_moving_picture_of_the_x_ray_that_loops():
+    with Image.open(DOCS / site.FILM) as film:
+        assert film.format == "GIF" and film.n_frames > 50 and film.info.get("loop") == 0
+        durations = []
+        for frame in range(film.n_frames):
+            film.seek(frame)
+            durations.append(film.info["duration"])
+        assert max(durations) == durations[-1] >= 2000         # its end stays, then it starts again
+        assert film.width >= 1200                              # sharp enough to read the values
+    assert (DOCS / site.FILM).stat().st_size <= 3 * 1024 * 1024
 
 
 def test_the_syscalls_page_has_every_service():
@@ -460,11 +502,18 @@ def test_the_shortcuts_page_has_every_shortcut_of_the_menus():
                 assert entry[2] in text
 
 
-def test_the_history_says_what_release_one_contains():
+def test_the_history_says_what_each_release_contains():
     text = parsed("help/history.html").text
     toolchain = json.loads((ROOT / "tools" / "toolchain.json").read_text(encoding="utf-8"))
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     assert f"ARES {site.RELEASE} was released in {site.RELEASE_MONTH}" in text
+    version, month, files = site.EARLIER
+    assert text.index(f"ARES {site.RELEASE} was") < text.index(f"ARES {version} was released in "
+                                                                f"{month}. It was the first release.")
+    assert "The Pipeline Simulator, a tenth tool" in text and "Nine tools: ARM X-Ray, " in text
+    assert "Pipeline Simulator; and the Memory Map" not in text      # 1.0 had nine
+    for package in files:
+        assert package in text
     assert toolchain["version"] in text
     for name in ("unicorn", "capstone"):
         version = re.search(rf"{name}==(\S+)", requirements).group(1)
@@ -508,6 +557,9 @@ BOOK_ALLOWED = {"help/acknowledgements.html": None, "help/tools.html": None}
 @pytest.mark.parametrize("place", PAGES)
 def test_names_stand_only_on_the_pages_that_may_hold_them(place):
     text = read(place)
+    if place == "help/tools.html":
+        for sentence in CREDIT_SENTENCES:
+            text = text.replace(html.escape(sentence), "")
     for names, allowed in ((OTHER_NAMES, OTHER_ALLOWED), ([COMPATIBLE], COMPATIBLE_ALLOWED),
                            (PEOPLE, PEOPLE_ALLOWED), ([BOOK], BOOK_ALLOWED)):
         if place in allowed and allowed[place] is None:
@@ -515,6 +567,12 @@ def test_names_stand_only_on_the_pages_that_may_hold_them(place):
         rest = outside(text, allowed.get(place) or set())
         for name in names:
             assert not re.search(rf"\b{name}\b", rest, re.IGNORECASE), (place, name)
+
+
+def test_the_tools_page_credits_the_tools_it_follows_in_their_sentences():
+    text = read("help/tools.html")
+    for sentence in CREDIT_SENTENCES:
+        assert text.count(html.escape(sentence)) == 1, sentence
 
 
 def test_the_names_do_stand_where_they_belong():

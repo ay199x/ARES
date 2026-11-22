@@ -31,6 +31,17 @@ def dpi_aware():
             pass
 
 
+def could_not_start(root, problem):
+    """Say why ARES could not start, in ARES's message box, in the middle of the screen (the
+    main window is hidden). Where that box cannot be drawn, the system's own says it."""
+    try:
+        from . import icons, msgbox
+        root.iconphoto(True, *icons.window_photos(root))
+        msgbox.show_error(root, "ARES could not start", problem, owned=False)
+    except Exception:
+        messagebox.showerror(APP_NAME, problem, parent=root)
+
+
 def main(argv=None):
     """Start the window; argv holds files to open."""
     files = sys.argv[1:] if argv is None else argv
@@ -45,8 +56,7 @@ def main(argv=None):
         root.update()                   # the main window is on the screen
     except Exception:
         splash.close()
-        messagebox.showerror(APP_NAME, "ARES could not start:\n\n" + traceback.format_exc(),
-                             parent=root)
+        could_not_start(root, "ARES could not start:\n\n" + traceback.format_exc())
         root.destroy()
         raise
     splash.close()

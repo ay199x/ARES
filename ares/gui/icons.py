@@ -3,7 +3,8 @@
 """ARES's icons, drawn in code at any pixel size.
 
 Each icon is designed on a square grid as many units wide as its size in
-design pixels at 100 % (BASES): 24 for the toolbar, 14 for the close button
+design pixels at 100 % (BASES): 24 for the toolbar and for the buttons of
+ARM X-Ray's film, which are drawn the same way, 14 for the close button
 of a file tab, 20 for the page arrows of the Data Segment and 32 for the
 dialogs a program asks for. It is a few shapes, polygons and ellipses in grid
 units, painted in order.
@@ -61,6 +62,9 @@ from .widgets import px, scale
 
 TOOLBAR = ("new", "open", "save", "save_as", "undo", "redo", "cut", "copy", "paste",
            "find", "assemble", "go", "step", "backstep", "pause", "stop", "reset", "help")
+# The buttons of ARM X-Ray's film, drawn like the toolbar's: Pause and Play (one button whose
+# picture changes), One step back, One step forward and Skip to end.
+FILM = ("film_pause", "film_play", "film_back", "film_step", "film_end")
 TURNING = ("undo", "redo")      # the turning arrows
 OTHER = ("close", "close_active",       # file tab close button; close_active is under the mouse
          "page_previous", "page_next",  # pages of the Data Segment
@@ -68,7 +72,7 @@ OTHER = ("close", "close_active",       # file tab close button; close_active is
          "message_question")
 
 # The width of each icon's grid: its size in design pixels.
-BASES = {**{name: 24 for name in TOOLBAR}, "close": 14, "close_active": 14,
+BASES = {**{name: 24 for name in TOOLBAR + FILM}, "close": 14, "close_active": 14,
          "page_previous": 20, "page_next": 20, "message_error": 32,
          "message_information": 32, "message_warning": 32, "message_question": 32}
 
@@ -901,6 +905,58 @@ def _help(c):
     c.paint("#FFFFFF", c.ellipse(12, 17.25, 1.9))
 
 
+# The film's buttons: the marks of a player, in indigo, the colour of the instruction word.
+
+FILM_SHADES = ("#C4B4F2", "#4A2496")    # light at the upper left, indigo at the lower right
+FILM_FILL = _slant(*FILM_SHADES, (2, 2), (22, 22))
+FILM_EDGE = "#2C1466"
+
+
+def _film_mark(c, points, paint=FILM_FILL):
+    c.outlined(points, FILM_EDGE, paint)
+
+
+def _film_bar(c, left, right, top=4, bottom=20, radius=2, paint=FILM_FILL):
+    """An upright bar with rounded corners, its sides on borders between pixels."""
+    left, right, top, bottom = (c.snap(value) for value in (left, right, top, bottom))
+    _film_mark(c, _arc(left + radius, top + radius, radius, 180, 270)
+               + _arc(right - radius, top + radius, radius, 270, 360)
+               + _arc(right - radius, bottom - radius, radius, 0, 90)
+               + _arc(left + radius, bottom - radius, radius, 90, 180), paint)
+
+
+def _film_play(c):
+    """Play: a triangle pointing right."""
+    _film_mark(c, [(6, 3), (20, 12), (6, 21)])
+
+
+def _film_pause(c):
+    """Pause: two upright bars, shaded across both."""
+    paint = _slant(*FILM_SHADES, (5.5, 4), (18.5, 20))
+    _film_bar(c, 5.5, 10.5, paint=paint)
+    _film_bar(c, 13.5, 18.5, paint=paint)
+
+
+def _film_step(c):
+    """One step forward: a triangle pointing right against a bar, as a player's next frame."""
+    _film_mark(c, [(3, 4), (15, 12), (3, 20)])
+    _film_bar(c, 16, 20.5)
+
+
+def _film_back(c):
+    """One step back: One step forward mirrored, a bar against a triangle pointing left (the
+    light still comes from the upper left)."""
+    _film_mark(c, [(21, 4), (9, 12), (21, 20)])
+    _film_bar(c, 3.5, 8)
+
+
+def _film_end(c):
+    """Skip to end: two triangles pointing right against a bar."""
+    _film_mark(c, [(1, 5), (9, 12), (1, 19)])
+    _film_mark(c, [(9, 5), (17, 12), (9, 19)])
+    _film_bar(c, 18, 22, 5, 19)
+
+
 # The other icons. Coordinates are in grid units. Most slanted sides run at 1:1 or
 # 1:2 and pass between pixel centres at 100 %, so their steps are even; corners are
 # on whole units, or on half units where a side or a centre line needs it.
@@ -992,7 +1048,9 @@ _DRAW = {
     "undo": _undo, "redo": _redo, "cut": _cut, "copy": _copy, "paste": _paste,
     "find": _find, "assemble": _assemble, "go": _go, "step": _step,
     "backstep": _backstep, "pause": _pause, "stop": _stop, "reset": _reset,
-    "help": _help, "close": _close, "close_active": _close_active,
+    "help": _help, "film_pause": _film_pause, "film_play": _film_play,
+    "film_back": _film_back, "film_step": _film_step, "film_end": _film_end,
+    "close": _close, "close_active": _close_active,
     "page_previous": _page_previous, "page_next": _page_next,
     "message_error": _message_error, "message_information": _message_information,
     "message_warning": _message_warning, "message_question": _message_question,
@@ -1085,7 +1143,7 @@ def png(name, size, disabled=False, ring=None):
     ring of close_active's raised bevel; by default it is the width of the
     icon's outlines.
     """
-    if name in TOOLBAR:
+    if name in TOOLBAR or name in FILM:
         if not 8 <= size <= 256:
             raise ValueError(f"icon size must be from 8 to 256 pixels, not {size}")
         if disabled and name in TURNING:

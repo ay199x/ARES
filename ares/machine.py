@@ -150,6 +150,7 @@ class Machine:
         self.base_dir = Path(base_dir) if base_dir is not None else Path.cwd()
         self._breakpoints = {}          # address -> Unicorn hook handle
         self._changes = 0               # changes recorded for Backstep so far
+        self.resets = -1                # Resets since the program was loaded (reset() adds 1)
         self.services = None
         self.observers = Observers()    # what connected tools observe; kept across Reset
         # The DE1-SoC's LEDs, displays, switches and keys (ares.devices.Board) while the
@@ -172,6 +173,7 @@ class Machine:
         self.error = None
         self.error_address = None       # where the runtime error happened (PC may change since)
         self.no_code = False            # the runtime error was a fetch of nothing there
+        self.resets += 1                # so a tool can tell that a Reset happened
         self.backsteps = 0              # instructions undone since the last Reset
         self.exit_value = None
         self.request = None             # what the program waits for, if anything
@@ -495,7 +497,7 @@ class Machine:
                 except UcError as e:
                     if self.stop_reason is None:
                         self._fail(self.pc, _UC_ERRORS.get(e.errno, str(e)))
-                if self.observers.blocks is not None:
+                if self.observers.follows_blocks:
                     # The instruction that failed did not complete, whatever PC is now.
                     self.observers.stopped(self.error_address if self.stop_reason
                                            is StopReason.ERROR else self.pc)

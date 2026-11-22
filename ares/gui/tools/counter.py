@@ -291,7 +291,9 @@ class CounterWindow(ToolWindow):
     """Tools > Dynamic Instruction Counter.
 
     Its panels (Panel) are categories, Instruction Categories at the left, and
-    formats, Encoding Formats at the right.
+    formats, Encoding Formats at the right. In a larger window they keep their
+    size, side by side in its middle: they hold counts and percentage bars, no
+    list or text that could show more.
     """
 
     NAME = "Dynamic Instruction Counter"
@@ -299,10 +301,13 @@ class CounterWindow(ToolWindow):
     MODEL = CounterModel
 
     def build(self, body):
-        self.categories = Panel(body, CATEGORY_PANEL)
-        self.formats = Panel(body, FORMAT_PANEL)
+        panels = ttk.Frame(body)        # the two panels together, in the middle of the room
+        panels.pack(expand=True)
+        self.categories = Panel(panels, CATEGORY_PANEL)
+        self.formats = Panel(panels, FORMAT_PANEL)
         self.categories.box.pack(side="left", fill="both", expand=True)
-        self.formats.box.pack(side="left", fill="both", expand=True, padx=(px(body, PANEL_GAP), 0))
+        self.formats.box.pack(side="left", fill="both", expand=True,
+                              padx=(px(body, PANEL_GAP), 0))
 
     def show(self):
         model = self.model

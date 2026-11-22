@@ -24,6 +24,15 @@ def credits_markup():
 
 
 TEXTBOOK = "Harris and Harris, Digital Design and Computer Architecture: ARM Edition."
+# The tool that ARM X-Ray follows, as its own help names its authors.
+XRAY_ORIGIN = ("ARM X-Ray follows MIPS X-Ray 2.0 of the MARS simulator, developed by Márcio "
+               "Roberto, Guilherme Sales, Fabrício Vivas, Flávio Cardeal and Fábio Lúcio.")
+# How ARM X-Ray's system box compares with that tool, for its help.
+XRAY_SYSTEM = ("ARES performs the service itself, as MARS performs a syscall; a real processor "
+               "would enter the operating system instead.")
+# The tool the Pipeline Simulator follows, as its paper names its authors; its help ends with it.
+PIPELINE_ORIGIN = ("The Pipeline Simulator follows the Pipelined Simulator and Branch Explainer of "
+                   "Di Xiang Lim and Smitha K G, a plug-in for MARS (IEEE TALE 2019).")
 
 # The paragraphs of the start of the Help's Intro page.
 MOTIVATION = (

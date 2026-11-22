@@ -1,0 +1,21 @@
+{
+  "program": "largest.s",
+  "instructions": 37,
+  "formats": {
+    "fmt_dp_reg": 10,
+    "fmt_dp_imm": 12,
+    "fmt_ls_imm": 7,
+    "fmt_ls_reg": 0,
+    "fmt_branch": 5,
+    "fmt_mul": 0,
+    "fmt_lsm": 0,
+    "fmt_svc": 3
+  },
+  "classes": {
+    "alu": 22,
+    "branch": 5,
+    "memory": 0,
+    "reg_transfer": 7,
+    "cond_load_other": 3
+  }
+}

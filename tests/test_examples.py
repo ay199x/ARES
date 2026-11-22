@@ -14,6 +14,7 @@ from ares.gui.tools.bitmap import BitmapModel
 from ares.gui.tools.cache import CacheModel
 from ares.gui.tools.counter import CounterModel
 from ares.gui.tools.labsim import LabSimModel
+from ares.gui.tools.pipeline import TOUR, TOUR_SETTINGS, PipelineModel, two_places
 from ares.machine import Machine
 from ares.program import Program
 from ares.runner import Runner, State
@@ -36,8 +37,9 @@ EXPECTED = {
     "sorting.s": ("", "3 7 19 24 42 56 71 88 \n"),
     "instruction_mix.s": ("", "Result: 78\n"),
     "float_bits.s": ("", "0x3f800000\n0xbf000000\n0x3dcccccd\n"),
-    "xray_tour.s": ("", ""),
+    "xray_tour.s": ("", "23\n"),
     "first_branch.s": ("", "The larger number is 12\n"),
+    "pipeline_tour.s": ("", "16\n"),
 }
 
 
@@ -159,15 +161,34 @@ def test_the_xray_example_stays_inside_the_datapath_and_returns_with_bx(tmp_path
         runner.step()
     assert returns == 1
     assert seen >= {xray.DP_REGISTER, xray.DP_IMMEDIATE, xray.LOAD_IMMEDIATE, xray.LOAD_REGISTER,
-                    xray.STORE_IMMEDIATE, xray.BRANCH, xray.BRANCH_LINK, xray.BRANCH_EXCHANGE}
+                    xray.STORE_IMMEDIATE, xray.BRANCH, xray.BRANCH_LINK, xray.BRANCH_EXCHANGE,
+                    xray.SYSTEM_CALL, xray.LOAD_MULTIPLE, xray.STORE_MULTIPLE, xray.MULTIPLY,
+                    xray.MOVE_16, xray.STORE_HALF_IMMEDIATE, xray.LOAD_HALF_IMMEDIATE}
     assert machine.reg(5) == 46 and machine.reg(3) == 9
+    assert machine.reg(9) == 23 * 9 and machine.reg(10) == 23 * 9 + 46     # MUL and MLA
+    assert machine.reg(11) == 23 << 4 and machine.reg(12) == 23 * 9 + 1     # LSL R1 and ADC
+    assert machine.reg(6) == machine.reg(7) == 0xFFFFFF9C       # MOVW and MOVT, then LDRSB: -100
+    assert machine.reg(4) == 0xFF9C                             # LDRH: zeros above
     total = machine.program.label_address("total")
     assert machine.peek_words(total, 2) == [23, 9]
+    numbers = machine.program.label_address("numbers")
+    assert machine.peek_words(machine.program.label_address("copy"), 4) == \
+        machine.peek_words(numbers, 4)
 
 
-def test_the_xray_example_has_no_instruction_outside_the_datapath_in_its_text(tmp_path):
+def test_the_xray_example_shows_the_passes_and_post_indexing(tmp_path):
+    """A subroutine with PUSH and POP (its return a POP of the PC), STM, a loop with
+    post-indexed loads and stores, MUL and MLA, MOVW and MOVT, and halfword and signed byte
+    transfers: the kinds of the datapath's additions."""
     code = [line.split("@")[0] for line in source("xray_tour.s").split("\n")]
-    assert not any(word in line for line in code for word in ("SVC", "PUSH", "POP", "LDM", "STM"))
+    words = " ".join(code)
+    assert "PUSH" in words and "POP     {R4, R6, R7, PC}" in words and "STMIA" in words
+    assert "[R0], #4" in words and "[R8], #4" in words
+    assert "MUL     R9, R2, R3" in words and "MLA     R10, R2, R3, R5" in words
+    assert "MOV     R11, R2, LSL R1" in words and "ADC     R12, R9, #0" in words
+    assert "MOVW    R6, #0xFF9C" in words and "MOVT    R6, #0xFFFF" in words
+    assert "STRH    R6, [R8]" in words and "LDRSB   R7, [R8]" in words
+    assert "LDRH    R4, [R8]" in words
 
 
 def test_the_mix_example_fills_both_panels(tmp_path):
@@ -196,3 +217,23 @@ def test_the_first_branch_example_behaves_as_its_walkthrough_says(tmp_path):
     for word in (machine.peek_words(address, 1)[0] for address in range(machine.pc - 20,
                                                                          machine.pc, 4)):
         assert xray.outside_note(word) == "", hex(word)  # the X-Ray animates each of them
+
+
+def test_the_pipeline_example_gives_the_numbers_its_walk_says(tmp_path):
+    """28 instructions; for each of the three settings of the walk in the tool's help, the
+    cycles and the CPI it says, and the NOPs Check Dependency adds."""
+    lost_to = []
+    for settings, said, nops in zip(TOUR_SETTINGS, TOUR, (26, 8, 2)):
+        model = PipelineModel()
+        model.configure(settings)
+        run_with(model, "pipeline_tour.s", tmp_path)
+        totals = model.totals
+        assert totals.instructions == 28
+        assert (f"{totals.cycles} cycles, CPI {two_places(totals.cycles, 28)}, steady-state CPI "
+                f"{two_places(totals.cycles - 4, 28)}") == said
+        assert model.check()[2] == nops
+        lost_to.append((totals.stalls, totals.flushes, totals.right, totals.wrong))
+        if settings.prediction != "none":
+            thrown = [row.text for row in model.rows() if row.flushed]
+            assert thrown[:2] == ["MOV R5, #8", "MOV R6, #8"]     # after BEQ, in line
+    assert lost_to == [(30, 0, 0, 0), (12, 0, 0, 0), (2, 7, 2, 3)]

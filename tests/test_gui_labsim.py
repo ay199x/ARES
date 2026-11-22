@@ -8,6 +8,7 @@ from test_gui_assemble import assemble
 from test_gui_look import all_buttons
 from test_gui_run import go_to_end, loaded, run_until
 from test_responsiveness import pictures
+from window_layout import at_size, clashes
 
 from ares.devices import EDGE_CAPTURE, HEX3_HEX0, KEYS, LEDS, SWITCHES
 from ares.gui import tools
@@ -16,7 +17,7 @@ from ares.gui.tools import frame
 from ares.gui.tools.labsim import (COLUMN, DARK_LED, DARK_SEGMENT, KEY_TIP, LIT_LED,
                                    LIT_SEGMENT, RESET_TIP, SLOT, SWITCH_TIP, LabSimWindow)
 from ares.gui.widgets import px
-from ares.gui.tools.frame import paragraphs
+from ares.gui.tools.frame import SETTLE_MS, paragraphs
 
 # 3 2 1 0 on HEX3-HEX0, 5 4 on HEX5 and HEX4, LEDR9, LEDR5 and LEDR0.
 SHOW = """\
@@ -345,7 +346,7 @@ def test_the_help_text(app):
     text = paragraphs(window.HELP)
     for words in ("0xFF200000", "0xFF200020", "0xFF200030", "0xFF200040", "0xFF200050",
                   "0xFF200058", "0xFF20005C", "Edgecapture", "0x3F", "Backstep", "Reset",
-                  "Connect to ARM", "not simulated"):
+                  "Connect to ARM", "not simulated", "larger or maximized: the displays"):
         assert words in text, words
 
 
@@ -377,3 +378,103 @@ def test_refreshing_redraws_only_what_changed(app, tmp_path):
     app.run("reset")
     go_to_end(app)                                              # the same values again
     assert configured == []
+
+
+# A larger window -----------------------------------------------------------------------------
+
+def settle(app):
+    """Run the window's events until its new size has settled and the board is drawn again for
+    it (frame.when_settled)."""
+    app.root.update()                   # the new size first: its wait starts now, and ends
+    app.root.after(2 * SETTLE_MS, app.root.quit)    # before this one, even on a busy computer
+    app.root.mainloop()
+
+
+def board(window):
+    """What the board shows: the segments of each display, the LEDs and the switches up."""
+    return [segments(window, n) for n in range(6)], leds(window), switches_up(window)
+
+
+def drawn_sizes(window):
+    """(width, height) of the displays', the LEDs' and the switches' canvases as drawn."""
+    return [(int(canvas.cget("width")), int(canvas.cget("height")))
+            for canvas in (window.displays, window.leds, window.switches)]
+
+
+def test_a_larger_window_grows_the_board_in_proportion(app, tmp_path):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), once its size has settled, the displays, the LEDs and the switches are drawn
+    again larger, in proportion, with their names and numbers, showing what the board shows;
+    a click still flips the switch under it. The keys keep their size and nothing clashes."""
+    loaded(app, tmp_path, SHOW)
+    window = connected(app)
+    go_to_end(app)
+    click_switch(window, 3)
+    shown = board(window)
+    top = window.window
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    usual = drawn_sizes(window)
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        settle(app)
+        assert clashes(part) == [], size
+        drawn = drawn_sizes(window)
+        canvases = (window.displays, window.leds, window.switches)
+        assert [(canvas.winfo_width(), canvas.winfo_height()) for canvas in canvases] == drawn
+        slack = 2               # Tk's box: a pixel more, and half one of a ring of odd width
+        for canvas, (width, height) in zip(canvases, drawn):
+            left, upper, right, lower = canvas.bbox("all")
+            assert min(left, upper) >= -slack
+            assert right <= width + slack and lower <= height + slack
+        assert window.displays.bbox("all")[2] >= drawn[0][0] - 1     # the panel: all its width
+        rings = [window.leds.coords(item) for item in window.leds.find_all()
+                 if window.leds.type(item) == "arc"]
+        assert min(box[1] for box in rings) >= window._px(1) // 2    # whole, inside the LED
+        assert board(window) == shown
+        sizes[size] = drawn, window.key_buttons[0].winfo_width()
+    (drawn, key), (big, big_key) = sizes[least], sizes[large]
+    assert drawn == usual and big_key == key
+    zooms = [big_width / width for (big_width, _), (width, _) in zip(big, drawn)]
+    assert min(zooms) > 1.2 and max(zooms) - min(zooms) < 0.02           # in proportion
+    assert all(big_height > height for (_, big_height), (_, height) in zip(big, drawn))
+    column = window.switches.winfo_width() // 10
+    native(window.switches)
+    window.switches.event_generate("<ButtonPress-1>", x=(9 - 5) * column + column // 2,
+                                   y=window.switches.winfo_height() // 4)
+    assert switches_up(window) == shown[2] | 1 << 5
+
+
+def test_the_board_is_drawn_again_only_once_the_size_has_settled(app):
+    """A drag of the window's edge changes its size at every pixel: the board is drawn again
+    once, when the size has stopped changing."""
+    window = labsim(app)
+    top = window.window
+    least = window.min_size()
+    usual = drawn_sizes(window)
+    part = at_size(top, *least)
+    settle(app)
+    drawn = []
+    draw = window._draw_board
+    window._draw_board = lambda: drawn.append(1) or draw()
+    for step in range(1, 6):            # laid out at each size, and no timer runs between
+        part.place_configure(width=least[0] + 60 * step, height=least[1] + 60 * step)
+        top.update_idletasks()
+    assert drawn == [] and drawn_sizes(window) == usual
+    settle(app)
+    assert drawn == [1] and drawn_sizes(window) != usual
+
+
+def test_a_size_still_settling_when_the_window_closes_does_no_harm(app):
+    """The window closes before its new size has settled (as when it is opened and closed at
+    once): the board waits for that no longer, and nothing fails."""
+    errors = []
+    app.root.tk.createcommand("bgerror", lambda *args: errors.append(args))
+    window = labsim(app)
+    at_size(window.window, *(n + 100 for n in window.min_size()))
+    window.close()
+    settle(app)
+    assert errors == [] and window.window is None

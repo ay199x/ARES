@@ -10,10 +10,10 @@ import threading
 import tkinter as tk
 import traceback
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, ttk
 from tkinter import font as tkfont
 
-from .. import APP_NAME, APP_TITLE, disasm
+from .. import APP_TITLE, disasm
 from ..assembler import ERROR, Message, assemble
 from ..console import FINISHED_STOPPED, Console
 from ..examples import example_folders, example_programs
@@ -22,7 +22,7 @@ from ..program import Program
 from ..runner import CAN_START, Runner, State
 from ..settings import DEFAULT_FONT, DEFAULT_SIZE, Settings, default_path, installed_family
 from ..toolchain import ToolchainMissingError
-from . import bumps, icons, titlebar, tools
+from . import bumps, icons, msgbox, titlebar, tools
 from .about import AboutDialog
 from .dialogs import (DIALOG_ICON_SIZE, MESSAGE_ICONS, DumpMemoryDialog, EditorFontDialog,
                       LineDialog, MemoryMapDialog, ServiceDialog, segment_ranges)
@@ -202,6 +202,7 @@ class App:
         self.help_window = None         # Help > Help, while it is open
         self.about_dialog = None        # Help > About ARES, while it is open
         self.tool_windows = {}          # command -> the window of a tool of the Tools menu
+        self.steps_taken = 0            # Steps so far: a tool tells a Step from a slow run
         self.dump_dialog = None         # File > Dump Memory, while it is open
         self._stale = False             # the tables do not show where a fast run is now
         self._assembly = None           # (thread, tab, file, job) while assembling
@@ -660,6 +661,10 @@ class App:
             available = ((hasattr(self, "cmd_" + name) or tools.available(name))
                          and states.get(name, True))
             self._set_enabled(name, available)
+        for window in self._open_tools():
+            changed = getattr(window, "commands_changed", None)
+            if changed is not None:
+                changed()
 
     def _set_enabled(self, name, on):
         if self._enabled.get(name) == on:
@@ -763,7 +768,7 @@ class App:
         return None
 
     def _cannot_open(self, problem):
-        messagebox.showerror(APP_NAME, problem, parent=self.root)
+        msgbox.show_error(self.root, "Cannot open file", problem)
 
     def cmd_close(self):
         if self.editor.current is not None:
@@ -802,14 +807,14 @@ class App:
         self.editor_changed()
 
     def _offer_save(self, tab):
-        """Ask whether to save the tab's changes; False when the user cancels."""
+        """Ask whether to save the tab's changes; False when the user cancels (or the save
+        fails)."""
         self.views.select(self.editor)
         self.editor.select(tab)
-        answer = messagebox.askyesnocancel(APP_NAME, f"Save changes to {tab.name}?",
-                                           parent=self.root)
-        if answer is None:
-            return False
-        return self.save(tab) if answer else True
+        answer = msgbox.ask_save(self.root, tab.name)
+        if answer == msgbox.YES:
+            return self.save(tab)
+        return answer == msgbox.NO
 
     def cmd_save(self):
         if self.editor.current is not None:
@@ -831,21 +836,38 @@ class App:
         return self._write(tab, tab.path)
 
     def save_as(self, tab):
+        """Ask for a name and save the tab under it; True when saved.
+
+        A file of that name is written over only after Yes to ARES's question;
+        No asks for another name, Cancel stops.
+        """
         self.editor.select(tab)
         folder = tab.path.parent if tab.path else self._folder_for_new_file()
-        path = filedialog.asksaveasfilename(parent=self.root, title="Save As",
-                                            initialdir=folder or None, initialfile=tab.name,
-                                            defaultextension=".s", filetypes=SOURCE_TYPES)
-        if not path:
+        name = tab.name
+        while True:
+            chosen = filedialog.asksaveasfilename(parent=self.root, title="Save As",
+                                                  initialdir=folder or None, initialfile=name,
+                                                  defaultextension=".s", filetypes=SOURCE_TYPES,
+                                                  confirmoverwrite=False)
+            if not chosen:
+                return False
+            path = Path(chosen)
+            other = self.editor.find(path)
+            if other is not None and other is not tab:
+                msgbox.show_error(self.root, "File already open",
+                                  f"{path.name} is open in another tab; close it first.")
+                return False
+            if not path.exists() or path.is_dir():      # writing to a folder fails and says so
+                break
+            answer = msgbox.ask_overwrite(self.root, path.name)
+            if answer == msgbox.YES:
+                break
+            if answer != msgbox.NO:
+                return False
+            folder, name = path.parent, path.name
+        if not self._write(tab, path, "Save As"):
             return False
-        other = self.editor.find(Path(path))
-        if other is not None and other is not tab:
-            messagebox.showerror(APP_NAME, f"{Path(path).name} is open in another tab; "
-                                 "close it first.", parent=self.root)
-            return False
-        if not self._write(tab, Path(path)):
-            return False
-        self.settings.last_folder = str(Path(path).resolve().parent)
+        self.settings.last_folder = str(path.resolve().parent)
         return True
 
     def _folder_for_new_file(self):
@@ -856,12 +878,15 @@ class App:
             return None
         return folder
 
-    def _write(self, tab, path):
+    def _write(self, tab, path, operation="Save"):
+        """Save the tab to path; False after saying why it failed. operation is "Save" or
+        "Save As", the command that saves."""
         try:
             tab.save(path)
         except OSError as e:
-            messagebox.showerror(APP_NAME, f"Cannot save {path}:\n{e.strerror or e}",
-                                 parent=self.root)
+            msgbox.show_error(self.root, f"{operation} Operation Failed",
+                              f"{operation} operation could not be completed due to an error:\n"
+                              f"{path} ({e.strerror or e})")
             return False
         return True
 
@@ -1167,6 +1192,7 @@ class App:
 
     def cmd_step(self):
         self._before_run()
+        self.steps_taken += 1
         self.runner.step()
         self._after_run()
 
@@ -1433,6 +1459,15 @@ class App:
     def _sp_now(self):
         """SP's value now; its start value while no program is loaded, as the Registers show."""
         return self.machine.reg(13) if self.machine is not None else INITIAL_SP
+
+    def written(self, address):
+        """The instruction at address of the program loaded, as the student wrote it: the
+        Source column's text without its line number, comment and labels (disasm.written());
+        None where the Source column shows no line, or with no program loaded."""
+        listing = self.execute.text_segment.listing
+        if self.program is None or listing is None:
+            return None
+        return disasm.written(self.program, listing.sources, address)
 
     def cmd_memory_map(self):
         if self.memory_map is not None and self.memory_map.window is not None:

@@ -96,11 +96,11 @@ def test_the_licence_says_in_plain_words_that_ares_is_open_source():
     assert "GPL-2.0-or-later" in words and "THIRD_PARTY_NOTICES.txt" in words
 
 
-def test_the_features_name_the_nine_tools_by_their_menu_labels():
+def test_the_features_name_the_ten_tools_by_their_menu_labels():
     from ares.gui.tools import TOOLS
     text = " ".join(section("Features").split())
     labels = [tool.label.replace("&", "") for tool in TOOLS]
-    assert len(labels) == 9
+    assert len(labels) == 10
     for label in labels:
         assert label in text, label
 
@@ -134,10 +134,10 @@ def test_the_files_of_the_release_are_in_the_table():
     assert rows == [
         "| `ARES.exe` | Windows 10 or 11, 64-bit: one file to run |",
         "| `ARES-windows.zip` | the same as a folder, with the example programs beside it |",
-        "| `ARES-macos-arm64.zip` | macOS 12 or newer, Apple Silicon |"]
-    for name in ("ARES-macos-x86_64.zip", "ARES-linux-x86_64.tar.gz"):
-        assert name not in README
-    assert "Packages for Linux and for Intel Macs will follow" in README
+        "| `ARES-macos-arm64.zip` | macOS 12 or newer, Apple Silicon |",
+        "| `ARES-macos-x86_64.zip` | macOS 12 or newer, Intel |",
+        "| `ARES-linux-x86_64.tar.gz` | 64-bit Linux with a desktop, such as Ubuntu 22.04 or newer |"]
+    assert "will follow" not in README
     assert re.search(r"\[Releases page\]\(https://github\.com/[^/]+/ARES/releases/latest\)",
                      section("Download"))
 
@@ -147,6 +147,14 @@ def test_the_first_start_of_each_system_is_explained():
     assert "More info > Run anyway" in words
     assert "**Open Anyway** in **System Settings > Privacy & Security**" in words
     assert "on macOS 12: **System Preferences > Security & Privacy**" in words
+    assert "**Linux:** unpack the file with `tar -xzf ARES-linux-x86_64.tar.gz`, then start " \
+           "`ARES/ARES`." in words
+
+
+def test_the_features_show_the_moving_picture_of_the_x_ray():
+    text = section("Features")
+    assert "](docs/images/tools/xray-film.gif)" in text
+    assert (ROOT / "docs" / "images" / "tools" / "xray-film.gif").is_file()
 
 
 def test_building_takes_one_command():

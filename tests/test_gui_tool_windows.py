@@ -378,7 +378,8 @@ HEADINGS = {"tool_cache": "Data cache performance, access by access",
             "tool_memref": "Where a program reads and writes memory",
             "tool_fpr": "A 32-bit IEEE 754 number, bit by bit",
             "tool_bht": "Predicting branches with a branch history table",
-            "tool_xray": "Animation of the ARM Datapath"}
+            "tool_xray": "Animation of the ARM Datapath",
+            "tool_pipeline": "Five-Stage Pipeline and Branch Prediction"}
 
 
 def all_widgets(widget):

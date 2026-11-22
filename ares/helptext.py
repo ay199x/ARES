@@ -259,7 +259,7 @@ IDE = """\
 - Run I/O: what the program prints, and where it reads what you type.
 
 The title bar shows the file on top, with `*` after its name while it has changes that are not
-saved, and the version: `hello.s* - ARES 1.0`. The dividers between the parts can be dragged and the
+saved, and the version: `hello.s* - ARES 1.1`. The dividers between the parts can be dragged and the
 window resized, for as long as ARES runs: every start opens maximized, with the default layout. A
 scroll bar shows only while what it scrolls does not
 fit; the editor always has both. The toolbar holds the commands used most, in the order of the
@@ -274,6 +274,8 @@ slider sets how fast Go runs (see the Debugging tab).
   File > Open Example opens a copy of one of the programs that come with ARES, as a new file with
   the example's name that is not saved yet; File > Save then asks where to save it.
   ARES asks before it closes a file with changes that are not saved, also at File > Exit.
+  Save As and Dump Memory ask before they write over a file that exists: Yes writes over it,
+  No asks for another name, Cancel stops.
 - Under the text the status line shows `Line: x  Column: y`, and Show Line Numbers turns the numbers
   at the left on and off.
 - Edit has Undo, Redo, Cut, Copy, Paste and Select All. Edit > Find/Replace finds and replaces

@@ -6,7 +6,7 @@ import re
 
 import pytest
 
-from ares import credits, helptext, instructions
+from ares import APP_TITLE, credits, helptext, instructions
 from ares.assembler import assemble
 from ares.capitals import offences
 from ares.gui import tools
@@ -311,10 +311,15 @@ def words_of(title):
                     + [cell for block in blocks_of(title) for row in block.rows for cell in row])
 
 
+def test_the_ide_page_shows_the_title_bar_with_this_version():
+    """The IDE tab's example of the title bar names the version ARES shows there."""
+    assert f"`hello.s* - {APP_TITLE}`" in helptext.IDE
+
+
 def test_the_intro_starts_with_the_name_the_version_and_the_story():
     blocks = blocks_of("Intro")
     assert blocks[0] == Block(TITLE, "ARES - ARM Educational Simulator")
-    assert blocks[1] == Block(TITLE, "Version 1.0")
+    assert blocks[1] == Block(TITLE, "Version 1.1")
     texts = [block.text for block in blocks]
     count = len(credits.MOTIVATION)
     assert tuple(texts[2:2 + count]) == credits.MOTIVATION

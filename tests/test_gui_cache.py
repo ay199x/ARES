@@ -15,12 +15,13 @@ from test_gui_run import go_to_end, loaded, run_until
 from test_responsiveness import pictures
 from test_runner import quiet_gc  # noqa: F401  (a fixture: collections walk ARES's objects only)
 from unicorn import UC_MEM_READ
+from window_layout import at_size, clashes
 
 from ares.gui.style import FACE, WINDOW
 from ares.gui.tools.cache import (COLOURS, EMPTY, HIT, LOG_LIMIT, MISS, PLACEMENTS,
                                   REPLACEMENTS, SIZES, CacheWindow)
 from ares.gui.widgets import px
-from ares.gui.tools.frame import paragraphs
+from ares.gui.tools.frame import SETTLE_MS, paragraphs
 
 FOREVER = """\
         .data
@@ -442,6 +443,78 @@ def test_tab_goes_round_the_lists_enabled_the_log_and_the_buttons(app):
     assert window.log_text not in tab_cycle(connect)
 
 
+def settle(app):
+    """Run the window's events until its new size has settled and what is drawn to its size
+    is drawn again (frame.when_settled)."""
+    app.root.update()                   # the new size first: its wait starts now, and ends
+    app.root.after(2 * SETTLE_MS, app.root.quit)    # before this one, even on a busy computer
+    app.root.mainloop()
+
+
+def table_size(window):
+    """The block table's size as drawn: the canvas's, and its last cell's far corner + 1."""
+    canvas = window.table
+    _, _, right, bottom = canvas.coords(window.cells[-1])
+    return (int(canvas.cget("width")), int(canvas.cget("height"))), (right + 1, bottom + 1)
+
+
+@pytest.mark.parametrize("blocks", ["8", "2048"])
+def test_a_larger_window_grows_the_block_table_in_proportion_and_the_log(app, blocks):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), the log grows, and the block table grows in proportion once the size has
+    settled, its cells sharing it; the counts keep their size and nothing clashes."""
+    window = simulator(app)
+    choose(window.blocks_box, blocks)
+    top = window.window
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    usual, _ = table_size(window)
+    page, bar = window.log_text.master, window.rate.canvas
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        settle(app)
+        assert clashes(part) == [], size
+        (width, height), corner = table_size(window)
+        assert corner == (width, height)
+        assert (window.table.winfo_width(), window.table.winfo_height()) == (width, height)
+        sizes[size] = ((width, height), (page.winfo_width(), page.winfo_height()),
+                       bar.winfo_width())
+    (table, log, bar_width), (big_table, big_log, big_bar_width) = sizes[least], sizes[large]
+    assert table == usual
+    assert big_table[0] > table[0] and big_table[1] > table[1]
+    assert abs(big_table[0] / big_table[1] - table[0] / table[1]) < 0.02    # in proportion
+    assert big_log[0] > log[0] and big_log[1] > log[1] and big_bar_width == bar_width
+
+
+def test_more_blocks_widen_the_least_size_with_the_table(app):
+    """A table of 2,048 blocks is wider: the window cannot be made narrower than it then
+    opens at, and a smaller table makes the least size the first again."""
+    window = simulator(app)
+    top = window.window
+    least = window.min_size()
+    choose(window.blocks_box, "2048")
+    wider = window.min_size()
+    assert wider == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == wider and wider[0] > least[0]
+    choose(window.blocks_box, "8")
+    assert tuple(int(n) for n in top.wm_minsize()) == window.min_size() == least
+
+
+def test_a_size_still_settling_when_the_window_closes_does_no_harm(app):
+    """The window closes before its new size has settled (as when it is opened and closed at
+    once): the table waits for that no longer, and nothing fails."""
+    errors = []
+    app.root.tk.createcommand("bgerror", lambda *args: errors.append(args))
+    window = simulator(app)
+    at_size(window.window, *(n + 100 for n in window.min_size()))
+    window.close()
+    settle(app)
+    assert errors == [] and window.window is None
+
+
 def test_escape_closes(app, tmp_path):
     loaded(app, tmp_path, LOOP)
     window = connected(app)
@@ -456,7 +529,8 @@ def test_the_help_text(app):
                   "N-way Set Associative", "LRU", "Random", "Number of blocks",
                   "Cache block size (words)", "Set size (blocks)", "Cache size (bytes)",
                   "Memory access count", "Cache hit rate", "green", "red", "Enabled",
-                  "LDRD", "VLDR", "PUSH", "STREX", "DE1-SoC", "literal pool", "Reset"):
+                  "LDRD", "VLDR", "PUSH", "STREX", "DE1-SoC", "literal pool", "Reset",
+                  "larger or maximized: the block table grows"):
         assert words in text, words
     assert "\n\n" in text
 

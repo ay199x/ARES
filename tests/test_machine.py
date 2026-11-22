@@ -87,6 +87,15 @@ def test_a_stack_larger_than_the_on_chip_memory_stops_the_program(run):
     assert machine.reg(13) == 0xFFFF0000                    # 64 KB pushed
 
 
+def test_resets_counts_each_reset_from_zero(build):
+    machine = Machine(build("        .global _start\n_start:\n        MOV R0, #1\n        B .\n"))
+    assert machine.resets == 0
+    machine.step()
+    machine.reset()
+    machine.reset()
+    assert machine.resets == 2 and machine.backsteps == 0 and not machine.history
+
+
 def test_reset_empties_the_stack(build):
     machine = Machine(build(LEAF))
     for _ in range(3):                                      # MOV, BL, PUSH

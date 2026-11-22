@@ -7,12 +7,13 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from conftest import lay_out, native, press_key, pump, use_test_clipboard
+from conftest import native, press_key, pump, use_test_clipboard
 from test_gui_assemble import assemble
 from test_gui_look import (RETURN_KEYS, all_buttons, check_return_presses_the_framed_button,
                            framed, move_focus, tab, tab_cycle, traversal)
 from test_gui_run import ECHO, READ_INT, go_to_end, loaded, run_io, run_until, type_line
 from test_responsiveness import pictures
+from window_layout import at_size, clashes
 
 from ares.gui.tools import mmio
 from ares.gui.tools.mmio import COLUMNS, KEYBOARD_ROWS, LIMIT, ROWS, KeyboardDisplayWindow
@@ -355,13 +356,57 @@ def test_the_font_dialog(app):
     assert window.font_dialog.window is None and window.font.cget("size") == 14
 
 
+def heights(window):
+    """(width, height) of the display's field and of the keyboard area's, as laid out."""
+    return tuple((field.winfo_width(), field.winfo_height())
+                 for field in (window.display.master, window.keyboard.master))
+
+
+def test_a_larger_window_gives_its_room_to_the_display_and_the_keyboard_area(app):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), both areas grow, the display four times as much in height as the keyboard area
+    (16 lines to 4); the buttons keep their size and nothing clashes."""
+    window = tool(app)
+    top = window.window
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        assert clashes(part) == [], size
+        sizes[size] = heights(window), window.font_button.winfo_width()
+    ((display, keyboard), button), ((big_display, big_keyboard), big_button) = (
+        sizes[least], sizes[large])
+    assert big_display[0] > display[0] and big_keyboard[0] > keyboard[0]
+    more_display, more_keyboard = big_display[1] - display[1], big_keyboard[1] - keyboard[1]
+    assert more_keyboard > 0 and abs(more_display - 4 * more_keyboard) <= 4
+    assert big_button == button
+
+
+def test_a_larger_font_makes_the_least_size_larger(app):
+    """The areas keep room for 64 x 16 and 64 x 4 characters of the font chosen: the window
+    cannot be made smaller than that."""
+    window = tool(app)
+    top = window.window
+    least = window.min_size()
+    window.font_button.invoke()
+    window.font_dialog.size.set(str(window.font.cget("size") + 6))
+    window.font_dialog.ok()
+    larger = window.min_size()
+    assert larger[0] > least[0] and larger[1] > least[1]
+    assert larger == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == larger
+
+
 def test_the_help_text(app):
     window = tool(app)
     text = paragraphs(window.HELP)
     for words in ("0xFF201000", "0xFF201004", "RVALID", "form feed (12) clears it",
                   "A bell (7) moves", "bits 31-20", "64 columns and 16 rows",
                   "Reset clears the display and the keyboard area", "ARES has no interrupts",
-                  "100,000", "CPUlator"):
+                  "100,000", "CPUlator", "larger or maximized", "grows to the size the font"):
         assert words in text, words
     assert "\n\n" in text and "keyboard\narea" not in text      # paragraphs wrap
 
@@ -398,9 +443,11 @@ def test_refreshing_shows_only_what_changed(app, tmp_path):
 
 
 def test_the_scroll_bar_shows_only_while_the_text_does_not_fit(app, tmp_path):
+    """Laid out at the size the window opens at: a hidden window is never given that size,
+    and the areas take the size of the window."""
     loaded(app, tmp_path, LINES)
     window = connected(app)
-    assert lay_out(window.window)
+    at_size(window.window, *window.min_size())
     field = window.display.master
     width, height = field.winfo_reqwidth(), field.winfo_reqheight()
     assert not window.display_bar.winfo_manager() and not window.keyboard_bar.winfo_manager()
@@ -458,7 +505,7 @@ def test_a_long_line_is_quick_to_show(app, tmp_path):
     line, a refresh takes up to 2.4 s and the run 6 s; broken, the run takes 0.2 s."""
     loaded(app, tmp_path, LONG_LINE)
     window = connected(app)
-    assert lay_out(window.window)
+    at_size(window.window, *window.min_size())     # as the window opens: its text's size
     took = timed_refreshes(app, window)
     go_to_end(app, 60)
     assert app.runner.state is State.FINISHED
@@ -475,7 +522,7 @@ def test_a_long_paste_is_quick_to_show(app, tmp_path):
     app.root.clipboard_append("y" * 30000)
     loaded(app, tmp_path, ECHO)
     window = connected(app)
-    assert lay_out(window.window)
+    at_size(window.window, *window.min_size())     # as the window opens: its text's size
     for _ in range(2):
         start = time.perf_counter()
         press_key(window.keyboard, "<<Paste>>")

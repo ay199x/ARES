@@ -16,6 +16,7 @@ from test_gui_assemble import assemble
 from test_gui_look import RETURN_KEYS, all_buttons, framed, move_focus
 from test_gui_run import go_to_end, loaded, run_until
 from test_responsiveness import pictures
+from window_layout import at_size, clashes
 
 from ares.floats import SINGLE_NAN
 from ares.gui.tools.fpr import (ALONE, DIGITS, EXPLAINED, FIELDS, FOLLOWS, HEX_COLOUR,
@@ -574,6 +575,29 @@ def test_return_in_a_field_applies_it_and_presses_no_button(app, key):
     assert framed(buttons) == ["Connect to ARM"]
     press_key(window.register_box, key)                 # elsewhere: the framed button
     assert pressed == ["Connect to ARM"]
+
+
+def test_a_larger_window_keeps_everything_its_size_in_its_middle(app):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), the fields, the picture of the bits, Instructions and the register's list keep
+    their size, together in the middle of the room; nothing clashes."""
+    window = fpr(app)
+    top = window.window
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    body, canvas, register = window.canvas.master, window.canvas, window.register_box
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        assert clashes(part) == [], size
+        sizes[size] = (canvas.winfo_width(), canvas.winfo_height(),
+                       window.instructions.winfo_width(), register.winfo_width())
+    assert sizes[large] == sizes[least]
+    x, y, width, height = body.grid_bbox()          # the cells of the grid, together
+    assert x > 0 and abs(x - (body.winfo_width() - x - width)) <= 1
+    assert y > 0 and abs(y - (body.winfo_height() - y - height)) <= 1
 
 
 def test_the_help_text(app):

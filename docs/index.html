@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ARES - ARM Educational Simulator</title>
-<meta name="description" content="ARES, the ARM Educational Simulator: an IDE for ARMv7 assembly language programming, for teaching. Free and open source, for Windows and macOS.">
+<meta name="description" content="ARES, the ARM Educational Simulator: an IDE for ARMv7 assembly language programming, for teaching. Free and open source, for Windows, macOS and Linux.">
 <link rel="canonical" href="https://ay199x.github.io/ARES/">
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ARES">
 <meta property="og:title" content="ARES - ARM Educational Simulator">
-<meta property="og:description" content="ARES, the ARM Educational Simulator: an IDE for ARMv7 assembly language programming, for teaching. Free and open source, for Windows and macOS.">
+<meta property="og:description" content="ARES, the ARM Educational Simulator: an IDE for ARMv7 assembly language programming, for teaching. Free and open source, for Windows, macOS and Linux.">
 <meta property="og:url" content="https://ay199x.github.io/ARES/">
 <meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
 <meta property="og:image:width" content="1200">
@@ -42,7 +42,7 @@
 <section id="intro">
 <p>ARES is a lightweight interactive development environment (IDE) for programming in ARMv7 assembly language, intended for students and teachers of computer organization. It assembles programs written for CPUlator's ARMv7 DE1-SoC system with the same GNU assembler, once their instructions and registers are in capitals (Edit &gt; Capitalize Instructions does that), and simulates the DE1-SoC computer they run on, with its JTAG UART, LEDs, switches and seven-segment displays.</p>
 </section>
-<p class="download"><a href="download.html">Download ARES 1.0 software!</a> (Nov. 2026)</p>
+<p class="download"><a href="download.html">Download ARES 1.1 software!</a> (Nov. 2026)</p>
 <ul>
 <li><i>A sample program to try in ARES, one of its examples:</i> <a href="https://github.com/ay199x/ARES/blob/main/examples/sorting.s">sorting.s</a></li>
 </ul>
@@ -55,8 +55,10 @@
 <li>Floating-point registers, and a bit-by-bit view of 32-bit floating-point numbers</li>
 <li>Runs at a speed you choose, one instruction at a time, and backwards</li>
 <li>System calls for text and number input and output, files and dialogs</li>
-<li>Teaching tools in their own windows, such as the ARM X-Ray datapath animation and a data cache simulator</li>
+<li>Ten teaching tools in their own windows, such as the ARM X-Ray, which plays the film of each instruction on the datapath, the Pipeline Simulator and a data cache simulator</li>
 </ul>
+<p><a href="help/tools.html#arm-x-ray">ARM X-Ray</a> playing the film of <code>ADD R2, R0, R1</code> (click it to see it at its full size):</p>
+<p><a href="images/tools/xray-film.gif"><img class="film" src="images/tools/xray-film.gif" width="1629" height="1008" alt="ARM X-Ray playing the film of ADD R2, R0, R1: the instruction is fetched and decoded, R0 = 12 and R1 = 30 are read, the ALU adds them, and 42 is written into R2"></a></p>
 </main>
 </div>
 <p class="footer">Copyright (c) 2026 The ARES Project</p>

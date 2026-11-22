@@ -10,13 +10,14 @@ from test_gui_look import RETURN_KEYS, all_buttons, framed, move_focus
 from test_gui_run import go_to_end, loaded, run_until
 from test_memref import ODD_CODE
 from test_responsiveness import pictures
+from window_layout import at_size, clashes
 
 from ares.gui import tools
 from ares.gui.places import STACK_TEXT
 from ares.gui.tools import memref
 from ares.gui.tools.memref import COUNTS, PLACES, VisualizationWindow
 from ares.gui.widgets import px
-from ares.gui.tools.frame import paragraphs
+from ares.gui.tools.frame import SETTLE_MS, paragraphs
 
 PROGRAM = """\
         .data
@@ -500,5 +501,106 @@ def test_the_help_text(app):
                   "Grid lines between units", "SVC #9", *PLACES,
                   "as in the Dynamic Instruction Counter",
                   "once for each word it reads or writes, in the unit of that word",
-                  "an unaligned LDR R0, [R1, #2] reads from two words", "STREX counts two"):
+                  "an unaligned LDR R0, [R1, #2] reads from two words", "STREX counts two",
+                  "larger or maximized: the display grows"):
         assert words in text, words
+
+
+# A larger window ----------------------------------------------------------------------
+
+def settle(app):
+    """Run the window's events until its new size has settled and the display is drawn again
+    for it (frame.when_settled)."""
+    app.root.update()                   # the new size first: its wait starts now, and ends
+    app.root.after(2 * SETTLE_MS, app.root.quit)    # before this one, even on a busy computer
+    app.root.mainloop()
+
+
+def grid_ends(window):
+    """(x of the last line between columns, y of the last line between rows)."""
+    lines = grid_lines(window)
+    columns = window.model.columns
+    return window.canvas.coords(lines[columns - 1])[0], window.canvas.coords(lines[-1])[1]
+
+
+def test_a_larger_window_draws_the_display_larger_in_proportion(app, tmp_path):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), once its size has settled, the display grows in proportion into the room right
+    of the settings, each unit a whole number of screen pixels: the same colours and grid
+    lines, also while the tool is not connected, at the top of the room in its middle. The
+    settings keep their size and nothing clashes."""
+    loaded(app, tmp_path, PROGRAM)
+    window = connected(app)
+    go_to_end(app)
+    window.connect_button.invoke()                  # Disconnect: the counts stay
+    assert colours(window) == END_COLOURS
+    top, model, canvas = window.window, window.model, window.canvas
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    usual = window.unit_size
+    settings, room, frame = window.grid_box.master, window.room, canvas.master
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        settle(app)
+        assert clashes(part) == [], size
+        width, height = window.unit_size
+        drawn = (model.columns * width, model.rows * height)
+        assert (int(canvas.cget("width")), int(canvas.cget("height"))) == drawn
+        assert (window.picture.width(), window.picture.height()) == drawn
+        assert (canvas.winfo_width(), canvas.winfo_height()) == drawn
+        assert frame.winfo_y() == 0
+        assert abs(frame.winfo_x() - (room.winfo_width() - frame.winfo_width()) // 2) <= 1
+        assert colours(window) == END_COLOURS
+        assert len(grid_lines(window)) == model.columns + model.rows
+        assert grid_ends(window) == ((model.columns - 1) * width, (model.rows - 1) * height)
+        sizes[size] = window.unit_size, (settings.winfo_width(), settings.winfo_height())
+    (unit, settings_size), (big_unit, big_settings_size) = sizes[least], sizes[large]
+    assert unit == usual and big_unit[0] > unit[0] and big_unit[1] > unit[1]
+    assert big_unit[0] * unit[1] == big_unit[1] * unit[0]           # in proportion
+    assert big_settings_size == settings_size
+
+
+def test_the_display_is_drawn_again_only_once_the_size_has_settled(app):
+    """A drag of the window's edge changes its size at every pixel: the display is drawn
+    again once, when the size has stopped changing."""
+    window = visualization(app)
+    top = window.window
+    least = window.min_size()
+    usual = window.unit_size
+    part = at_size(top, *least)
+    settle(app)
+    painted = []
+    paint = window._paint
+    window._paint = lambda *rows: painted.append(rows) or paint(*rows)
+    for step in range(1, 6):            # laid out at each size, and no timer runs between
+        part.place_configure(width=least[0] + 60 * step, height=least[1] + 60 * step)
+        top.update_idletasks()
+    assert painted == [] and window.unit_size == usual
+    settle(app)
+    assert painted == [(0, window.model.rows - 1)] and window.unit_size > usual
+
+
+def test_a_new_display_size_gives_the_window_a_new_least_size(app):
+    window = visualization(app)
+    top = window.window
+    least = window.min_size()
+    choose(window.lists["width"], "512")
+    wider = window.min_size()
+    assert wider == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == wider and wider[0] > least[0]
+    assert window.unit_size == (px(window.canvas, 16), px(window.canvas, 16))
+
+
+def test_a_size_still_settling_when_the_window_closes_does_no_harm(app):
+    """The window closes before its new size has settled (as when it is opened and closed at
+    once): the display waits for that no longer, and nothing fails."""
+    errors = []
+    app.root.tk.createcommand("bgerror", lambda *args: errors.append(args))
+    window = visualization(app)
+    at_size(window.window, *(n + 100 for n in window.min_size()))
+    window.close()
+    settle(app)
+    assert errors == [] and window.window is None

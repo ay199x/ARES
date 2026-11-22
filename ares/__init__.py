@@ -4,5 +4,5 @@
 
 APP_NAME = "ARES"
 APP_FULL_NAME = "ARM Educational Simulator"
-__version__ = "1.0"
+__version__ = "1.1"
 APP_TITLE = f"{APP_NAME} {__version__}"                # the main window's title, with no file open

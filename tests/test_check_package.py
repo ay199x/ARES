@@ -60,13 +60,25 @@ def test_a_report_lists_all_its_problems():
     assert problems[:3] == ["the list was not finished", "it did not run as a package",
                             "2 internal errors in ARES Messages"]
     assert problems[3].startswith("File > Open Example lacks ")
-    assert problems[4:] == ["tool_x: a traceback", "LICENSE: only 3 characters"]
+    assert problems[4:] == ["tool_x: a traceback", "LICENSE: only 3 characters",
+                            "ARM X-Ray: not tried", "Pipeline Simulator: not tried",
+                            "message box: not tried"]
+
+
+def test_a_report_says_which_of_the_new_parts_failed():
+    report = {"programs": {"programs/a.s": good("42" + END)}, "tools": {}, "documents": {},
+              "internal errors": 0, "frozen": True, "done": True,
+              "examples": list(check.example_table()),
+              "working": {"ARM X-Ray": "ok", "Pipeline Simulator": "a traceback"}}
+    assert check.report_problems(report, [OUT]) == ["Pipeline Simulator: a traceback",
+                                                    "message box: not tried"]
 
 
 def test_a_good_report_has_no_problems():
     report = {"programs": {"programs/a.s": good("42" + END)}, "tools": {"tool_x": "opened"},
               "documents": {"LICENSE": 5000}, "internal errors": 0, "frozen": True, "done": True,
-              "examples": list(check.example_table())}
+              "examples": list(check.example_table()),
+              "working": {name: "ok" for name in check.WORKING}}
     assert check.report_problems(report, [OUT]) == []
 
 

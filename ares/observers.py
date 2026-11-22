@@ -154,6 +154,7 @@ class Observers:
         self._counting = []         # the clients that count
         self._block_handle = None
         self._hooks = []            # _Hook, in the order they were asked for
+        self._followers = []        # (client, stopped, stepped_over) of the tools that follow blocks
         self.jtag = []              # (client, callback) of the tools that watch the JTAG UART
 
     # Asking ---------------------------------------------------------------
@@ -171,6 +172,25 @@ class Observers:
                 self._block_handle = add_hook(self.uc, UC_HOOK_BLOCK, self.blocks.hook)
                 self.uc.ctl_flush_tb()
         return self.blocks
+
+    def follow_blocks(self, client, entered, stopped, stepped_over):
+        """Tell client the order in which the basic blocks run, not only their counts.
+
+        entered gets Unicorn's own arguments (see add_hook()) for each block the
+        emulator enters, and must not raise. stopped(address) is called after
+        each run of the emulator, with the next instruction at address: the
+        instructions from there to the end of the block entered last did not
+        complete (see BlockCounts). stepped_over(address) is called for a WFE or
+        YIELD the machine stepped over, which completed.
+        """
+        self._followers.append((client, stopped, stepped_over))
+        self._add(_Hook(client, UC_HOOK_BLOCK, entered, 1, 0))
+
+    @property
+    def follows_blocks(self):
+        """True while some tool counts or follows the basic blocks: the machine then tells
+        where each run of the emulator stopped."""
+        return self.blocks is not None or bool(self._followers)
 
     def watch_memory(self, client, callback, reads=True, writes=True, begin=0, end=0xFFFFFFFF,
                      raw=False):
@@ -277,6 +297,7 @@ class Observers:
                     self.uc.hook_del(hook.handle)
             self._flush()
         self.jtag = [(watcher, callback) for watcher, callback in self.jtag if watcher != client]
+        self._followers = [entry for entry in self._followers if entry[0] != client]
 
     @property
     def active(self):
@@ -322,11 +343,15 @@ class Observers:
         """A run of the emulator ended, with the next instruction at address (see BlockCounts)."""
         if self.blocks is not None:
             self.blocks.stopped(address)
+        for _, stopped, _ in self._followers:
+            stopped(address)
 
     def stepped_over(self, address):
         """The machine stepped over the WFE or YIELD at address (it completed)."""
         if self.blocks is not None:
             self.blocks.stepped_over(address)
+        for _, _, stepped_over in self._followers:
+            stepped_over(address)
 
     def keep_last(self):
         """Move the code hooks after a hook the machine just added: Unicorn calls the hooks

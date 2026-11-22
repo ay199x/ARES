@@ -93,8 +93,12 @@ Reset clears the display and the keyboard area, and makes the display plain text
 Nothing else clears them: they keep their text when the program is assembled again, reset
 (Reset, F12) or stepped back, and when its file is closed; the tool stays connected.
 
-Font... chooses the font of the display and the keyboard area. The display stays 64
-characters wide and 16 lines high, and the window takes the size the font needs.
+Font... chooses the font of the display and the keyboard area. The display keeps room for
+64 characters and 16 lines of it, the keyboard area for 64 characters and 4 lines, and the
+window grows to the size the font needs if it is smaller.
+
+The window can be made larger or maximized: the display and the keyboard area grow and
+show more lines; the lines stay 64 characters long.
 
 The JTAG UART is the one of the DE1-SoC computer as CPUlator simulates it, so programs that
 use it run there as well; clearing with a form feed and moving the cursor with a bell are
@@ -340,8 +344,13 @@ class KeyboardDisplayWindow(ToolWindow):
         model = self.model
         self._shown = {}                # each area's text -> the area's state it shows
         self.windowing_system = body._windowingsystem   # which keys are the shortcuts' modifiers
+        # A larger window gives its height to the two areas, to each as many shares as it
+        # has lines, and its width to both.
+        body.columnconfigure(0, weight=1)
+        body.rowconfigure(0, weight=model.rows)
+        body.rowconfigure(1, weight=KEYBOARD_ROWS)
         box = group(body, DISPLAY_TITLE)
-        box.pack(fill="x")
+        box.grid(row=0, column=0, sticky="nsew")
         self.display, self.display_bar = _field(box, self.font, model.columns, model.rows,
                                                 takefocus=False, insertwidth=0)
         tab_moves_on(self.display)      # once a click put the focus there
@@ -353,7 +362,7 @@ class KeyboardDisplayWindow(ToolWindow):
         self.status.pack(side="left", padx=(gap, 0))
         self.font_tip = Tooltip(self.font_button, FONT_TIP)
         box = group(body, KEYBOARD_TITLE)
-        box.pack(fill="x", pady=(gap, 0))
+        box.grid(row=1, column=0, sticky="nsew", pady=(gap, 0))
         self.keyboard, self.keyboard_bar = _field(box, self.font, model.columns, KEYBOARD_ROWS,
                                                   insertbackground=TEXT)
         keyboard = self.keyboard
@@ -398,7 +407,14 @@ class KeyboardDisplayWindow(ToolWindow):
         self.keyboard.focus_set()       # ready for typing again
 
     def choose_font(self):
-        self.font_dialog = FontDialog(self.window, self.font)
+        self.font_dialog = FontDialog(self.window, self.font, changed=self._font_changed)
+
+    def _font_changed(self):
+        """The areas keep room for their characters in the new font: the window cannot be
+        made smaller than that, and grows to it if it is smaller."""
+        if self.window is not None:
+            self.window.update_idletasks()      # the size the areas now ask for
+            self.window.minsize(*self.min_size())
 
     # The keyboard ----------------------------------------------------------------------
 
@@ -450,13 +466,16 @@ class KeyboardDisplayWindow(ToolWindow):
 
 def _field(master, font, columns, rows, **options):
     """A white sunken field of columns x rows characters, lines wrapped, with a vertical
-    scroll bar while its text does not fit; returns (its read-only text, the bar).
+    scroll bar while its text does not fit; returns (its read-only text, the bar). It takes
+    the room a larger window gives it.
 
     The bar's room is kept when the bar is hidden, so the field keeps its
     size and the text its lines.
     """
     field = sunken(tk.Frame(master, background=FIELD))
-    field.pack(fill="x")
+    field.pack(fill="both", expand=True)
+    field.rowconfigure(0, weight=1)
+    field.columnconfigure(0, weight=1)
     text = ReadOnlyText(field, font=font, width=columns, height=rows, wrap="char",
                         background=FIELD, foreground=TEXT, borderwidth=0, highlightthickness=0,
                         padx=px(field, 4), pady=px(field, 2), **options)
@@ -478,11 +497,13 @@ class FontDialog:
 
     It is modal, and opens centred over the tool's window (place_over()). OK
     gives font (the areas' font) the family and size chosen, if the size is
-    one of FONT_SIZES; Cancel, Escape and the close box leave it as it was.
+    one of FONT_SIZES, then calls changed(); Cancel, Escape and the close box
+    leave it as it was.
     """
 
-    def __init__(self, master, font):
+    def __init__(self, master, font, changed=None):
         self.font = font
+        self.changed = changed
         window = self.window = tk.Toplevel(master)
         window.withdraw()
         window.title("Font")
@@ -563,6 +584,8 @@ class FontDialog:
             return
         self.font.configure(family=self.family.get(), size=size)
         self.close()
+        if self.changed is not None:
+            self.changed()
 
     def cancel(self):
         self.close()

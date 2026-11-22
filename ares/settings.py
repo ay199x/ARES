@@ -33,6 +33,7 @@ DEFAULT_FONT = CODE_FAMILIES[0]
 
 FONT_SIZES = range(6, 73)
 TAB_SIZES = range(1, 17)
+XRAY_SECONDS = range(5, 41)
 
 
 @dataclass
@@ -51,6 +52,9 @@ class Settings:
     tab_size: int = 4
     tab_spaces: bool = True             # the Tab key inserts spaces
     show_line_numbers: bool = True
+    # Tools > ARM X-Ray: how long the film of one instruction lasts, and whether Step plays it
+    xray_seconds: int = 15
+    xray_animate: bool = True
     # Restore Defaults keeps this. The window's size and dividers are not settings: every start
     # takes the defaults.
     last_folder: str = ""
@@ -90,7 +94,7 @@ class Settings:
 
 
 KEPT = frozenset(("last_folder",))
-_RANGES = {"font_size": FONT_SIZES, "tab_size": TAB_SIZES}
+_RANGES = {"font_size": FONT_SIZES, "tab_size": TAB_SIZES, "xray_seconds": XRAY_SECONDS}
 
 
 def _valid(name, value):

@@ -10,12 +10,13 @@ from conftest import native, press_key
 from test_gui_look import all_buttons, framed, move_focus
 from test_gui_run import go_to_end, loaded
 from test_responsiveness import pictures
+from window_layout import at_size, clashes
 
 from ares.gui.tools import bitmap
 from ares.gui.tools.bitmap import DATA, HEAP, BitmapWindow, data_start
 from ares.machine import DDR_END
 from ares.runner import State
-from ares.gui.tools.frame import paragraphs
+from ares.gui.tools.frame import SETTLE_MS, paragraphs
 
 RED, GREEN, BLUE, YELLOW = 0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00
 NO_DATA, NO_HEAP = ".data: no program assembled", "heap: no program assembled"
@@ -509,7 +510,7 @@ def test_the_help_text(app):
     text = paragraphs(window.HELP)
     for words in ("0x00RRGGBB", "Unit Width in Pixels", "Display Height in Pixels",
                   "Base address for display", ".data", "heap", "SVC #9", "Backstep",
-                  "Reset", "0x3FFFFFFF"):
+                  "Reset", "0x3FFFFFFF", "larger or maximized: the display grows"):
         assert words in text, words
 
 
@@ -530,3 +531,130 @@ def test_no_button_has_the_frame_while_the_base_field_has_the_focus(app):
     assert framed(buttons) == []
     move_focus(window.base_box, window.size_boxes["width"])
     assert framed(buttons) == ["Connect to ARM"]
+
+
+# A larger window ----------------------------------------------------------------
+
+def settle(app):
+    """Run the window's events until its new size has settled and the display is drawn again
+    for it (frame.when_settled)."""
+    app.root.update()                   # the new size first: its wait starts now, and ends
+    app.root.after(2 * SETTLE_MS, app.root.quit)    # before this one, even on a busy computer
+    app.root.mainloop()
+
+
+def test_a_larger_room_draws_the_display_with_more_whole_pixels_per_pixel():
+    assert bitmap.grown(1, 512, 256, 1100, 600) == 2
+    assert bitmap.grown(1, 512, 256, 1600, 900) == 3
+    assert bitmap.grown(2, 512, 256, 1100, 600) == 2
+    assert bitmap.grown(2, 512, 256, 600, 300) == 2         # never fewer than at the usual size
+    assert bitmap.grown(1, 1024, 1024, 900, 900) == 1       # too large even 1:1: scroll bars
+
+
+def test_the_view_of_a_picture_in_a_room():
+    """(canvas width, canvas height, vertical bar, horizontal bar): the room holds the bars."""
+    assert bitmap.view(512, 256, 600, 300, (17, 17)) == (512, 256, False, False)
+    assert bitmap.view(1024, 256, 960, 630, (17, 17)) == (960, 256, False, True)
+    assert bitmap.view(1024, 1024, 960, 630, (17, 17)) == (943, 613, True, True)
+
+
+def test_a_larger_window_draws_the_display_larger_in_whole_steps(app, tmp_path):
+    """The window is no smaller than it opens. Larger (here 1.8 times, about a maximized
+    window), once its size has settled, the display is drawn with as many whole screen pixels
+    per pixel as the room right of the settings takes: the same picture, also while the tool
+    is not connected, at the top of the room in its middle. The settings keep their size and
+    nothing clashes."""
+    loaded(app, tmp_path, PICTURE)
+    window = small(app)                                     # 64 x 64 pixels
+    go_to_end(app)
+    window.connect_button.invoke()                          # Disconnect: the picture stays
+    picture = top_row(window)
+    assert picture == [0, GREEN, BLUE]
+    top = window.window
+    least = window.min_size()
+    assert least == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == least
+    usual = window.factor
+    settings, room, screen = window.size_boxes["width"].master, window.room, window.canvas.master
+    border = 2 * screen.winfo_pixels(screen.cget("borderwidth"))
+    large = (least[0] * 9 // 5, least[1] * 9 // 5)
+    sizes = {}
+    for size in (least, large):
+        part = at_size(top, *size)
+        settle(app)
+        assert clashes(part) == [], size
+        factor = window.factor
+        assert factor == max(usual, min((room.winfo_width() - border) // 64,
+                                        (room.winfo_height() - border) // 64))
+        assert (window.image.width(), window.image.height()) == (64 * factor, 64 * factor)
+        assert (window.canvas.winfo_width(), window.canvas.winfo_height()) == (
+            64 * factor, 64 * factor)
+        assert screen.winfo_y() == 0
+        assert abs(screen.winfo_x() - (room.winfo_width() - screen.winfo_width()) // 2) <= 1
+        assert top_row(window) == picture
+        sizes[size] = factor, (settings.winfo_width(), settings.winfo_height())
+    assert sizes[least][0] == usual and sizes[large][0] > usual
+    assert sizes[large][1] == sizes[least][1]
+
+
+def test_the_display_is_drawn_again_only_once_the_size_has_settled(app):
+    """A drag of the window's edge changes its size at every pixel: the display is drawn
+    again once, when the size has stopped changing."""
+    window = small(app, connect=False)
+    top = window.window
+    least = window.min_size()
+    usual = window.factor
+    part = at_size(top, *least)
+    settle(app)
+    drawn = []
+    draw = window._draw
+    window._draw = lambda first, end: drawn.append((first, end)) or draw(first, end)
+    for step in range(1, 6):            # laid out at each size, and no timer runs between
+        part.place_configure(width=least[0] + 60 * step, height=least[1] + 60 * step)
+        top.update_idletasks()
+    assert drawn == [] and window.factor == usual
+    settle(app)
+    assert drawn == [(0, window.model.rows)] and window.factor > usual
+
+
+def test_a_display_too_large_for_the_screen_shows_more_in_a_larger_window(app, monkeypatch):
+    """1024 pixels across do not fit 60 % of a 1600 x 900 screen: a scroll bar. In a window
+    200 pixels wider all of them show, still one screen pixel per pixel."""
+    monkeypatch.setattr(bitmap, "scale", lambda widget: 1.0)
+    monkeypatch.setattr(tkinter.Misc, "winfo_screenwidth", lambda self: 1600)
+    monkeypatch.setattr(tkinter.Misc, "winfo_screenheight", lambda self: 900)
+    window = bitmap_window(app)
+    choose(window.size_boxes["width"], 1024)
+    assert window.hbar.winfo_manager() == "grid" and window.canvas.winfo_reqwidth() == 960
+    top = window.window
+    least = window.min_size()
+    part = at_size(top, least[0] + 200, least[1] + 100)
+    settle(app)
+    assert clashes(part) == []
+    assert window.factor == 1 and not window.hbar.winfo_manager()
+    assert (window.canvas.winfo_reqwidth(), window.canvas.winfo_reqheight()) == (1024, 256)
+    at_size(top, *least)
+    settle(app)
+    assert window.hbar.winfo_manager() == "grid" and window.canvas.winfo_reqwidth() == 960
+
+
+def test_a_new_display_size_gives_the_window_a_new_least_size(app):
+    window = bitmap_window(app)
+    top = window.window
+    least = window.min_size()
+    choose(window.size_boxes["width"], 64)
+    narrower = window.min_size()
+    assert narrower == (top.winfo_reqwidth(), top.winfo_reqheight())
+    assert tuple(int(n) for n in top.wm_minsize()) == narrower and narrower[0] < least[0]
+
+
+def test_a_size_still_settling_when_the_window_closes_does_no_harm(app):
+    """The window closes before its new size has settled (as when it is opened and closed at
+    once): the display waits for that no longer, and nothing fails."""
+    errors = []
+    app.root.tk.createcommand("bgerror", lambda *args: errors.append(args))
+    window = bitmap_window(app)
+    at_size(window.window, *(n + 100 for n in window.min_size()))
+    window.close()
+    settle(app)
+    assert errors == [] and window.window is None

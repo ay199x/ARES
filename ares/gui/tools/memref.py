@@ -26,7 +26,7 @@ from ..places import (CURRENT_SP, STACK_TEXT, gray_unavailable, list_width, plac
                       select_text)
 from ..style import default_button, sunken
 from ..widgets import Tooltip, px
-from .frame import ToolModel, ToolWindow
+from .frame import ToolModel, ToolWindow, when_settled
 
 WORDS_PER_UNIT = tuple(2 ** n for n in range(12))       # 1 to 2048
 UNIT_SIZES = (1, 2, 4, 8, 16, 32)                       # a unit's width or height, design pixels
@@ -94,6 +94,10 @@ Choosing a setting or a base address starts the display again: every count goes 
 
 Grid lines between units: a line along the top and the left edge of every unit, in the colour
 opposite to that of no access.
+
+The window can be made larger or maximized: the display grows with it, in proportion, each unit
+a whole number of screen pixels, never smaller than in the window as it opens. The settings and
+the colours keep their size.
 
 The colours: no access black, 1 access blue, 2 green, 3 to 4 yellow, 5 to 9 orange, 10 or more
 red. To change one, choose a number of accesses with the slider (0 to 10, then in steps up to
@@ -352,7 +356,10 @@ class VisualizationWindow(ToolWindow):
     display on the right: a picture with one pixel per unit (units) copied,
     enlarged to the units' size, into the picture on the canvas (picture).
     Only the units whose colour changed are drawn again: in each band of
-    rows that has some, the columns from the first to the last of them.
+    rows that has some, the columns from the first to the last of them. A
+    larger window gives the display the room right of the settings: once the
+    window's size has settled, the units grow in proportion to fill it
+    (_fit()), never smaller than in the window of usual size.
     """
 
     NAME = "Memory Reference Visualization"
@@ -420,8 +427,14 @@ class VisualizationWindow(ToolWindow):
         self.count_label = ttk.Label(settings, anchor="center")
         self.count_label.grid(row=row + 2, column=0, columnspan=2, sticky="ew")
 
-        frame = sunken(tk.Frame(body))
-        frame.grid(row=0, column=1, sticky="n", padx=(2 * gap, 0))
+        # The room right of the settings, which a larger window gives the display: it asks
+        # for the display's usual size, which _lay_out() gives it.
+        room = self.room = ttk.Frame(body)
+        room.grid(row=0, column=1, sticky="nsew", padx=(2 * gap, 0))
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
+        frame = self.frame = sunken(tk.Frame(room))
+        frame.place(relx=0.5, y=0, anchor="n")      # at the top of the room, in its middle
         self.canvas = tk.Canvas(frame, borderwidth=0, highlightthickness=0, takefocus=False)
         self.canvas.pack()
         self.units = tk.PhotoImage(master=body)          # one pixel per unit
@@ -434,11 +447,20 @@ class VisualizationWindow(ToolWindow):
         self.slider.configure(command=self._slid)
         self._show_count()
         self._lay_out()
+        # Waiting for the size to settle belongs to the main window: a wait the window's
+        # closing cuts short then ends quietly (_fit() finds no window).
+        room.after, room.after_cancel = room._root().after, room._root().after_cancel
+        when_settled(room, self._fit)
 
     # The settings and the base address ------------------------------------------------
 
     def _setting_chosen(self, name):
         self._configure(**{name: int(self.lists[name].get())})
+        # The display has a new usual size, and so has the window: it cannot be made smaller
+        # than it now opens at, and grows to that if it is smaller.
+        self.window.update_idletasks()
+        self.window.minsize(*self.min_size())
+        self._fit()
 
     def _configure(self, **settings):
         self.model.configure(**settings)
@@ -530,17 +552,48 @@ class VisualizationWindow(ToolWindow):
     # The display ---------------------------------------------------------------
 
     def _lay_out(self):
-        """Size the pictures and the canvas for the settings, and draw the grid lines; every
-        unit is drawn again by the next show()."""
+        """Size the pictures and the canvas for the settings at the window's usual size, and
+        draw the grid lines; every unit is drawn again by the next show(). The room right of
+        the settings asks for that size; in a larger window the display fits the room
+        (_fit())."""
         model = self.model
         canvas = self.canvas
-        self.unit_size = width, height = (max(1, px(canvas, model.unit_width)),
-                                          max(1, px(canvas, model.unit_height)))
+        self.usual_unit = width, height = (max(1, px(canvas, model.unit_width)),
+                                           max(1, px(canvas, model.unit_height)))
         self.units.configure(width=model.columns, height=model.rows)
-        self.picture.configure(width=model.columns * width, height=model.rows * height)
-        canvas.configure(width=model.columns * width, height=model.rows * height)
         self.levels = bytearray(len(model.counts))      # the colour level drawn for each unit
+        border = self._border()
+        self.room.configure(width=model.columns * width + border,
+                            height=model.rows * height + border)
+        self.unit_size = None
+        self._fit(draw=False)
+
+    def _fit(self, draw=True):
+        """The window's size has settled: the display grows in proportion into the room right
+        of the settings, each unit a whole number of screen pixels, never smaller than at the
+        usual size. With draw, every unit is drawn again at its new size from the colours it
+        shows."""
+        if self.window is None:
+            return
+        model, room = self.model, self.room
+        width, height = self.usual_unit
+        border = self._border()
+        zoom = max(1.0, min((room.winfo_width() - border) / (model.columns * width),
+                            (room.winfo_height() - border) / (model.rows * height)))
+        unit = (max(width, int(width * zoom)), max(height, int(height * zoom)))
+        if unit == self.unit_size:
+            return
+        self.unit_size = unit
+        drawn = (model.columns * unit[0], model.rows * unit[1])
+        self.picture.configure(width=drawn[0], height=drawn[1])
+        self.canvas.configure(width=drawn[0], height=drawn[1])
         self._draw_grid()
+        if draw:
+            self._paint(0, model.rows - 1)
+
+    def _border(self):
+        """The sunken border's pixels at both sides of the display."""
+        return 2 * self.frame.winfo_pixels(self.frame.cget("borderwidth"))
 
     def _draw_grid(self):
         """While Grid lines is checked, a line along the top and the left edge of each unit,

@@ -25,7 +25,7 @@ from ...runner import State
 from ..places import gray_unavailable, list_width, place_text, put_back
 from ..style import sunken
 from ..widgets import Tooltip, bars_needed, px, scale, show_bar
-from .frame import ToolModel, ToolWindow
+from .frame import ToolModel, ToolWindow, when_settled
 
 UNIT_SIZES = (1, 2, 4, 8, 16, 32)               # a unit's width or height, in pixels
 DISPLAY_SIZES = (64, 128, 256, 512, 1024)       # the display's width or height, in pixels
@@ -99,6 +99,11 @@ keeps about its size and its units stay sharp. A display that would then not fit
 screen is drawn with fewer screen pixels per pixel, and with scroll bars when even one
 screen pixel per pixel does not fit.
 
+The window can be made larger or maximized: the display grows with it, in whole steps. It
+is drawn with as many whole screen pixels per pixel as the room right of the settings holds
+(3 x 3, for example), never fewer than in the window as it opens, and a display with scroll
+bars shows more of itself. The settings keep their size.
+
 Speed: the tool adds nothing to the instructions themselves. It reads the display's
 words when the window shows the program's state and draws only the rows that changed.
 A small display costs next to nothing. A large one takes longer (a display of 1024 x 1024
@@ -150,6 +155,24 @@ def zoom(scale, width, height, room_width, room_height):
     while factor > 1 and (width * factor > room_width or height * factor > room_height):
         factor -= 1
     return factor
+
+
+def grown(factor, width, height, room_width, room_height):
+    """Screen pixels per pixel of a display of width x height pixels in a larger window, whose
+    room for it is room_width x room_height: the most whole pixels with which it fits, never
+    fewer than factor, those of the window's usual size."""
+    return max(factor, min(room_width // width, room_height // height))
+
+
+def view(width, height, room_width, room_height, thickness):
+    """(canvas width, canvas height, vertical bar, horizontal bar) of a picture of width x
+    height screen pixels in a room of room_width x room_height that holds its scroll bars as
+    well (thickness: the vertical bar's width, the horizontal bar's height): the canvas as
+    large as the picture, at most what the bars the picture needs leave of the room."""
+    vertical, horizontal = bars_needed(lambda room: height <= room, lambda room: width <= room,
+                                       room_width, room_height, thickness)
+    return (min(width, room_width - (thickness[0] if vertical else 0)),
+            min(height, room_height - (thickness[1] if horizontal else 0)), vertical, horizontal)
 
 
 def bands(rows, most=MANY_BANDS):
@@ -311,7 +334,10 @@ class BitmapWindow(ToolWindow):
 
     The display is one picture, made when the window opens and sized again
     when the display's size changes; the rows that changed are put into it
-    as a few PPM pictures, never pixel by pixel.
+    as a few PPM pictures, never pixel by pixel. A larger window gives the
+    display the room right of the settings: once the window's size has
+    settled, the display is drawn with as many whole screen pixels per pixel
+    as fit there (_fit()), never fewer than in the window of usual size.
     """
 
     NAME = "Bitmap Display"
@@ -322,8 +348,12 @@ class BitmapWindow(ToolWindow):
     def __init__(self, app):
         self.shown_size = None          # the display's size in pixels when the picture was sized
         self.factor = 1                 # screen pixels per pixel of the display
+        self.usual = None               # (factor, canvas and bars' width, height): usual size
+        self._view = None               # (factor, canvas width, height, bars) as shown
         self.next_refresh = 0.0         # while the program runs: the clock of the next refresh
+        self.opened = False             # the window is made and has its least size
         super().__init__(app)
+        self.opened = True
         self.tips[self.reset_button].set_text(RESET_TIP)
 
     def refresh(self):
@@ -372,8 +402,14 @@ class BitmapWindow(ToolWindow):
         box.bind("<FocusOut>", self._address_leaving, add="+")
         Tooltip(box, BASE_TIP)
         self._show_base()
-        screen = sunken(tk.Frame(body))
-        screen.grid(row=0, column=1, sticky="nw", padx=(2 * gap, 0))
+        # The room right of the settings, which a larger window gives the display: it asks
+        # for the display's usual size, which _size_picture() gives it.
+        room = self.room = ttk.Frame(body)
+        room.grid(row=0, column=1, sticky="nsew", padx=(2 * gap, 0))
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
+        screen = self.screen = sunken(tk.Frame(room))
+        screen.place(relx=0.5, y=0, anchor="n")     # at the top of the room, in its middle
         self.canvas = tk.Canvas(screen, background="#000000", borderwidth=0,
                                 highlightthickness=0, takefocus=False)
         self.vbar = ttk.Scrollbar(screen, orient="vertical", command=self.canvas.yview)
@@ -384,6 +420,10 @@ class BitmapWindow(ToolWindow):
         self.hbar.grid(row=1, column=0, sticky="ew")
         self.image = tk.PhotoImage(master=self.canvas, width=1, height=1)
         self.canvas.create_image(0, 0, anchor="nw", image=self.image)
+        # Waiting for the size to settle belongs to the main window: a wait the window's
+        # closing cuts short then ends quietly (_fit() finds no window).
+        room.after, room.after_cancel = room._root().after, room._root().after_cancel
+        when_settled(room, self._fit)
 
     def show(self):
         model = self.model
@@ -407,26 +447,75 @@ class BitmapWindow(ToolWindow):
     # The display -------------------------------------------------------------------
 
     def _size_picture(self):
-        """Size the picture and its canvas for the display: as large as the interface's
-        scale makes it, if that fits the screen, with scroll bars if it does not."""
+        """Size the picture and its canvas for the display at the window's usual size: as
+        large as the interface's scale makes it, if that fits the screen, with scroll bars if
+        it does not. The room right of the settings asks for that size, and so the window
+        cannot be made smaller than it then opens at; in a larger window the display fits the
+        room (_fit())."""
         model, window = self.model, self.window
         room_width = int(window.winfo_screenwidth() * ROOM[0])
         room_height = int(window.winfo_screenheight() * ROOM[1])
-        self.factor = zoom(scale(window), model.width, model.height, room_width, room_height)
-        width, height = model.width * self.factor, model.height * self.factor
-        self.image.configure(width=width, height=height)
-        thickness = (self.vbar.winfo_reqwidth(), self.hbar.winfo_reqheight())
-        vertical, horizontal = bars_needed(lambda room: height <= room, lambda room: width <= room,
-                                           room_width, room_height, thickness)
-        self.canvas.configure(
-            width=min(width, room_width - (thickness[0] if vertical else 0)),
-            height=min(height, room_height - (thickness[1] if horizontal else 0)),
-            scrollregion=(0, 0, width, height))
-        self.canvas.xview_moveto(0)
-        self.canvas.yview_moveto(0)
+        factor = zoom(scale(window), model.width, model.height, room_width, room_height)
+        shown = view(model.width * factor, model.height * factor, room_width, room_height,
+                     self._thickness())
+        width, height, vertical, horizontal = shown
+        width += self.vbar.winfo_reqwidth() if vertical else 0
+        height += self.hbar.winfo_reqheight() if horizontal else 0
+        self.usual = factor, width, height
+        border = self._border()
+        self.room.configure(width=width + border, height=height + border)
+        self.shown_size = model.width, model.height
+        if self.opened:
+            window.update_idletasks()               # the size the window now asks for
+            window.minsize(*self.min_size())
+        self._fit(draw=False)       # show() draws every row: the display started again
+
+    def _fit(self, draw=True):
+        """The window's size has settled: draw the display with as many whole screen pixels
+        per pixel as fit the room right of the settings, never fewer than at the usual size;
+        a display too large even so shows as much of itself as the room holds. With draw,
+        the rows are drawn again from the words the display holds when its size changes."""
+        if self.window is None or self.usual is None:
+            return
+        model, room = self.model, self.room
+        factor, width, height = self.usual
+        border = self._border()
+        room_width = max(room.winfo_width() - border, width)
+        room_height = max(room.winfo_height() - border, height)
+        factor = grown(factor, model.width, model.height, room_width, room_height)
+        resized = self._show_view(factor, view(model.width * factor, model.height * factor,
+                                               room_width, room_height, self._thickness()))
+        if resized and draw:
+            self._draw(0, model.rows)
+
+    def _show_view(self, factor, shown):
+        """Show the display with factor screen pixels per pixel, its canvas and bars as
+        view() gives them; True when the picture has a new size (it is empty then)."""
+        layout = (factor, *shown)
+        if layout == self._view:
+            return False
+        resized = self._view is None or factor != self._view[0]
+        width, height, vertical, horizontal = shown
+        self._view = layout
+        self.factor = factor
+        picture = (self.model.width * factor, self.model.height * factor)
+        if resized or (self.image.width(), self.image.height()) != picture:
+            self.image.configure(width=picture[0], height=picture[1])
+            resized = True
+        self.canvas.configure(width=width, height=height, scrollregion=(0, 0, *picture))
+        if resized:
+            self.canvas.xview_moveto(0)
+            self.canvas.yview_moveto(0)
         show_bar(self.vbar, vertical)
         show_bar(self.hbar, horizontal)
-        self.shown_size = model.width, model.height
+        return resized
+
+    def _thickness(self):
+        return self.vbar.winfo_reqwidth(), self.hbar.winfo_reqheight()
+
+    def _border(self):
+        """The sunken border's pixels at both sides of the display."""
+        return 2 * self.screen.winfo_pixels(self.screen.cget("borderwidth"))
 
     def _draw(self, first, end):
         """Put the rows from first to end (excluded) into the picture."""

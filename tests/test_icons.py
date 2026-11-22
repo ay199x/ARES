@@ -14,7 +14,8 @@ from ares.gui import icons, style, widgets
 from ares.gui.app import CLOSE_ICON_SIZE, ICON_SIZE, PAGE_ICON_SIZE
 from ares.gui.dialogs import DIALOG_ICON_SIZE
 
-NAMES = icons.TOOLBAR + icons.OTHER
+NAMES = icons.TOOLBAR + icons.FILM + icons.OTHER
+SHADED = icons.TOOLBAR + icons.FILM     # drawn soft and shaded, ghosted when disabled
 SCALES = (1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3)
 TOOLBAR_SCALES = (1, 1.5, 2.25)
 SHADOWED = ("message_error", "message_information", "message_warning", "message_question")
@@ -151,8 +152,9 @@ def test_the_icons_and_their_grids():
     assert icons.OTHER == ("close", "close_active", "page_previous", "page_next",
                            "message_error", "message_information", "message_warning",
                            "message_question")
+    assert icons.FILM == ("film_pause", "film_play", "film_back", "film_step", "film_end")
     # Each icon's grid is as many units wide as the window shows it in design pixels.
-    assert {icons.BASES[name] for name in icons.TOOLBAR} == {ICON_SIZE}
+    assert {icons.BASES[name] for name in icons.TOOLBAR + icons.FILM} == {ICON_SIZE}
     assert icons.BASES["close"] == icons.BASES["close_active"] == CLOSE_ICON_SIZE
     assert icons.BASES["page_previous"] == icons.BASES["page_next"] == PAGE_ICON_SIZE
     assert {icons.BASES[name] for name in SHADOWED} == {DIALOG_ICON_SIZE}
@@ -243,7 +245,7 @@ def is_white(red, green, blue):
 
 @pytest.mark.parametrize("disabled", [False, True])
 @pytest.mark.parametrize("scale", TOOLBAR_SCALES)
-@pytest.mark.parametrize("name", icons.TOOLBAR)
+@pytest.mark.parametrize("name", SHADED)
 def test_toolbar_icon_has_its_size_and_is_not_empty(name, scale, disabled):
     rows = decode(icons.png(name, size_at(name, scale), disabled))
     size = size_at(name, scale)
@@ -255,19 +257,19 @@ def test_toolbar_icon_has_its_size_and_is_not_empty(name, scale, disabled):
 @pytest.mark.parametrize("disabled", [False, True])
 @pytest.mark.parametrize("scale", TOOLBAR_SCALES)
 def test_toolbar_icons_are_distinct(scale, disabled):
-    drawn = [icons.png(name, size_at(name, scale), disabled) for name in icons.TOOLBAR]
+    drawn = [icons.png(name, size_at(name, scale), disabled) for name in SHADED]
     assert len({zlib.decompress(chunks(data)[1][1]) for data in drawn}) == len(drawn)
 
 
 @pytest.mark.parametrize("scale", TOOLBAR_SCALES)
-@pytest.mark.parametrize("name", icons.TOOLBAR)
+@pytest.mark.parametrize("name", SHADED)
 def test_toolbar_icons_are_shaded(name, scale):
     # Soft shading: more colours than the 16 of the Windows 98 palette.
     assert len({pixel[2:5] for pixel in rgba(name, scale) if pixel[5]}) > 16
 
 
 @pytest.mark.parametrize("scale", TOOLBAR_SCALES)
-@pytest.mark.parametrize("name", icons.TOOLBAR)
+@pytest.mark.parametrize("name", SHADED)
 def test_a_disabled_toolbar_icon_is_a_gray_ghost(name, scale):
     normal, ghost = rgba(name, scale), rgba(name, scale, disabled=True)
     assert ghost != normal
@@ -460,11 +462,84 @@ def test_the_page_of_new_has_crisp_straight_sides(scale):
     assert {pixel[3] for pixel in row} == {0, 255}
 
 
-@pytest.mark.parametrize("name", icons.TOOLBAR)
+@pytest.mark.parametrize("name", SHADED)
 def test_toolbar_pictures_do_not_change_when_made_again(name):
     first = icons.png(name, 36)
     icons.forget_pictures()
     assert icons.png(name, 36) == first
+
+
+# The buttons of ARM X-Ray's film -----------------------------------------------------------
+
+def is_indigo(red, green, blue):
+    return blue > green + 24 and red > green
+
+
+def columns(rows):
+    """For each column of a picture, how many of its pixels are nearly opaque."""
+    return [sum(1 for row in rows if row[x] is not None) for x in range(len(rows))]
+
+
+def solid_rows(name, scale):
+    """The picture with only its nearly opaque pixels (the others None)."""
+    found = {(x, y) for x, y, *_ in solid(name, scale)}
+    size = size_at(name, scale)
+    return [[(x, y) if (x, y) in found else None for x in range(size)] for y in range(size)]
+
+
+@pytest.mark.parametrize("scale", TOOLBAR_SCALES)
+@pytest.mark.parametrize("name", icons.FILM)
+def test_the_film_buttons_are_indigo_marks_on_no_disc(name, scale):
+    found = solid(name, scale)
+    assert share(found, is_indigo) >= 0.6
+    assert share(found, is_green) == 0              # not a run control of the program
+    assert share(found, is_white) == 0              # no white mark on a disc
+
+
+@pytest.mark.parametrize("scale", TOOLBAR_SCALES)
+def test_the_film_buttons_stay_distinct_when_disabled(scale):
+    shapes = [rgba(name, scale, disabled=True) for name in icons.FILM]
+    assert all(a != b for i, a in enumerate(shapes) for b in shapes[i + 1:])
+
+
+@pytest.mark.parametrize("scale", TOOLBAR_SCALES)
+def test_pause_has_two_bars_and_resume_points_right(scale):
+    size = size_at("film_pause", scale)
+    middle = solid_rows("film_pause", scale)[size // 2]
+    runs_of = [colour is not None for colour in middle]
+    assert sum(1 for i, on in enumerate(runs_of) if on and (i == 0 or not runs_of[i - 1])) == 2
+    height = columns(solid_rows("film_play", scale))
+    left, right = extent(solid_rows("film_play", scale))[0::2]
+    assert height[left + 1] > height[right - 1] * 3  # tall at its left, a point at its right
+
+
+@pytest.mark.parametrize("scale", TOOLBAR_SCALES)
+@pytest.mark.parametrize("name, marks", [("film_step", 2), ("film_end", 3)])
+def test_one_step_and_skip_to_end_point_right_against_a_bar(name, marks, scale):
+    rows = solid_rows(name, scale)
+    size = size_at(name, scale)
+    height = columns(rows)
+    left, top, right, bottom = extent(rows)
+    # The bar at the right is upright and whole (its corners are round).
+    assert max(height[right - size // 8:right + 1]) >= (bottom - top) * 0.9
+    middle = [colour is not None for colour in rows[size // 2]]
+    starts = sum(1 for i, on in enumerate(middle) if on and (i == 0 or not middle[i - 1]))
+    assert starts <= marks and height[left] > height[left + (right - left) // 3] * 0.9
+
+
+@pytest.mark.parametrize("scale", TOOLBAR_SCALES)
+def test_one_step_back_is_one_step_forward_mirrored(scale):
+    """The same marks turned left to right: a bar at the left against a triangle pointing left
+    (shaded as every icon, the light from the upper left)."""
+    back, forward = solid_rows("film_back", scale), solid_rows("film_step", scale)
+    shape = [[pixel is not None for pixel in row] for row in back]
+    mirrored = [[pixel is not None for pixel in reversed(row)] for row in forward]
+    assert shape == mirrored
+    height = columns(back)
+    left, top, right, bottom = extent(back)
+    size = size_at("film_back", scale)
+    assert max(height[left:left + size // 8 + 1]) >= (bottom - top) * 0.9    # the bar, whole
+    assert height[right] > height[right - (right - left) // 3] * 0.9        # tall at the right
 
 
 # Crisp pixels in few colours of the Windows 98 palette, for the other icons -----------

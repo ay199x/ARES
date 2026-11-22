@@ -79,7 +79,7 @@ def test_every_notebook_comes_from_the_one_helper(app, monkeypatch):
 
 def test_the_title_has_the_version(app):
     app.run("help")
-    assert app.help_window.window.title() == f"ARES {__version__} Help" == "ARES 1.0 Help"
+    assert app.help_window.window.title() == f"ARES {__version__} Help" == "ARES 1.1 Help"
 
 
 def test_a_page_is_filled_the_first_time_it_is_shown(app):
@@ -127,7 +127,7 @@ def test_the_intro_shows_the_story_and_the_credits(app):
     app.help_window.select("Intro")
     page = app.help_window.pages["Intro"]
     text = words(page)
-    assert text.startswith("ARES - ARM Educational Simulator Version 1.0")
+    assert text.startswith("ARES - ARM Educational Simulator Version 1.1")
     for part in (*credits.MOTIVATION, credits.FUN_FACT, *credits.CREDITS):
         assert part in text
     assert page.text.tag_ranges(helptext.TITLE)
@@ -1024,20 +1024,46 @@ def test_the_splash_goes_with_the_start_and_closes_last(monkeypatch, tmp_path):
     assert shares == sorted(shares) and shares[-1] == 1 and len(shares) >= 5
 
 
-def test_a_start_that_fails_closes_the_splash_first(monkeypatch, tmp_path):
+def test_a_start_that_fails_closes_the_splash_first(monkeypatch, tmp_path, message_boxes):
     from ares.gui import app as app_module
-    from tkinter import messagebox
 
     def fails(root, **options):
         raise OSError("no")
+    steps = []
+    monkeypatch.setattr(start, "Splash", Recorder)
+    monkeypatch.setattr(app_module, "App", fails)
+    message_boxes.answer(lambda box: steps.append(list(Recorder.made.steps)) or "ok")
+    with pytest.raises(OSError):
+        start.main([])
+    box, = message_boxes.shown
+    assert steps and steps[0][-1] == "closed"
+    # ARES's own box, in the middle of the screen: the main window it would belong to is hidden.
+    assert (box.kind, box.title, box.buttons, box.owned) == (
+        "error", "ARES could not start", ("ok",), False)
+    assert box.text.startswith("ARES could not start:\n\nTraceback") and "OSError: no" in box.text
+
+
+def test_where_ares_box_cannot_be_drawn_the_systems_says_why_it_could_not_start(
+        monkeypatch, message_boxes):
+    from tkinter import messagebox
+
+    from ares.gui import app as app_module
+
+    def fails(root, **options):
+        raise OSError("no")
+
+    def broken(box):
+        raise tk.TclError("no Tk")
     shown = []
     monkeypatch.setattr(start, "Splash", Recorder)
     monkeypatch.setattr(app_module, "App", fails)
+    message_boxes.answer(broken)
     monkeypatch.setattr(messagebox, "showerror",
-                        lambda *args, **options: shown.append(list(Recorder.made.steps)))
+                        lambda title, text, **options: shown.append((title, text)))
     with pytest.raises(OSError):
         start.main([])
-    assert shown and shown[0][-1] == "closed"
+    (title, text), = shown
+    assert title == "ARES" and text.startswith("ARES could not start:\n\n")
 
 
 def test_the_design_sizes_are_scaled(tk_root, splash_screen):

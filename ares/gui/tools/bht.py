@@ -99,6 +99,9 @@ branch did. It keeps the last 1,000 lines. While the program runs at full speed 
 follows it and the log waits: it gets the newest lines when the run stops (Pause, a
 breakpoint, the end).
 
+The window can be made larger or maximized: the table and the log grow. The table takes
+most of the height while it has more entries than it shows, the log the rest.
+
 A branch counts once, when it runs. A breakpoint, Pause or Step that stops before it does
 not count it; it counts when the program goes on. A branch to itself whose condition
 holds (BEQ . for example) ends the program, as B . does, and does not count.
@@ -274,7 +277,8 @@ class BHTModel(ToolModel):
 
 
 class BHTWindow(ToolWindow):
-    """Tools > BHT Simulator."""
+    """Tools > BHT Simulator. A larger window gives its room to the table and the log; the
+    lists and the fields keep their size."""
 
     NAME = "BHT Simulator"
     HEADING = "Predicting branches with a branch history table"
@@ -339,7 +343,7 @@ class BHTWindow(ToolWindow):
         ttk.Label(body, text="Log").grid(row=2, column=0, columnspan=2, sticky="w",
                                          pady=(2 * gap, 0))
         page = style.sunken(tk.Frame(body))     # the log and its scroll bars
-        page.grid(row=3, column=0, columnspan=2, sticky="ew")
+        page.grid(row=3, column=0, columnspan=2, sticky="nsew")
         self.log = text = _Log(page, font=font, wrap="none", height=LOG_LINES,
                                background=style.WINDOW, foreground=style.TEXT, borderwidth=0,
                                highlightthickness=0, padx=px(body, 4), pady=px(body, 2))
@@ -358,7 +362,16 @@ class BHTWindow(ToolWindow):
                        + 2 * (ring + text.winfo_pixels(text.cget("pady"))))
         page.grid_propagate(False)
         self.bars = HidingBars(text, yscroll, xscroll)
+        self.body = body
         body.columnconfigure(1, weight=1)       # the table takes the width the log needs
+        self._share_height()
+
+    def _share_height(self):
+        """The height a larger window adds: three quarters to the table while it has more
+        entries than it shows, the rest to the log; all of it to the log when every entry
+        shows."""
+        self.body.rowconfigure(1, weight=3 if self.model.entries > VISIBLE_ROWS else 0)
+        self.body.rowconfigure(3, weight=1)
 
     # What the window shows --------------------------------------------------------
 
@@ -448,6 +461,7 @@ class BHTWindow(ToolWindow):
             return
         model.configure(*settings)
         self.table.set_rows(model.entries, self._row)
+        self._share_height()
         self.show()
 
 

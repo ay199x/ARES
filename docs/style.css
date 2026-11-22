@@ -55,6 +55,8 @@ body.help th, body.help td { border: 1px solid #999999; padding: 2px 6px; text-a
 body.help th { background: #C8DDF2; }
 .tool { display: block; width: auto; max-width: min(100%, 600px); border: 1px solid #999999;
   margin: 0.5em 0; box-sizing: border-box; }
+.film { display: block; width: auto; max-width: 100%; border: 1px solid #999999;
+  box-sizing: border-box; }
 body.help h3 { font-size: 1em; margin: 1.2em 0 0.4em; }
 .contents { text-align: center; }
 

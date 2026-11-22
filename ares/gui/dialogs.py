@@ -4,6 +4,7 @@
 
 import struct
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, ttk
 from tkinter import font as tkfont
 
@@ -12,6 +13,7 @@ from ..files import write_file
 from ..machine import (DDR_BASE, DDR_END, DEVICES_BASE, DEVICES_SIZE, JTAG_UART, JTAG_UART_SIZE,
                        ONCHIP_BASE)
 from ..settings import FONT_SIZES, TAB_SIZES, installed_family
+from . import msgbox
 from .style import default_button, sunken
 from .table import STRIPE, WHITE, Column, Row, Table, column_width
 from .tools.frame import place_over
@@ -509,19 +511,35 @@ class DumpMemoryDialog:
                                    if end > first else "")
 
     def dump(self):
-        """Ask for a file name and write the dump; None when cancelled."""
+        """Ask for a file name and write the dump; None when cancelled.
+
+        A file of that name is written over only after Yes to ARES's question;
+        No asks for another name, Cancel goes back to this window.
+        """
         name = self.segment.get()
         if name not in self.ranges:
             return None
         first, end = self.ranges[name]
         binary = self.format.get() == DUMP_FORMATS[0][0]
         extension = DUMP_FORMATS[0][1] if binary else DUMP_FORMATS[1][1]
-        path = filedialog.asksaveasfilename(
-            parent=self.window, title="Dump Memory", initialdir=self.last_folder or None,
-            initialfile=name.strip(".") + extension, defaultextension=extension,
-            filetypes=[("Dump files", "*" + extension), ("All files", "*.*")])
-        if not path:
-            return None
+        folder, initial = self.last_folder, name.strip(".") + extension
+        while True:
+            path = filedialog.asksaveasfilename(
+                parent=self.window, title="Dump Memory", initialdir=folder or None,
+                initialfile=initial, defaultextension=extension,
+                filetypes=[("Dump files", "*" + extension), ("All files", "*.*")],
+                confirmoverwrite=False)
+            if not path:
+                return None
+            chosen = Path(path)
+            if not chosen.exists() or chosen.is_dir():  # writing to a folder fails and says so
+                break
+            answer = msgbox.ask_overwrite(self.window, chosen.name)
+            if answer == msgbox.YES:
+                break
+            if answer != msgbox.NO:
+                return None
+            folder, initial = str(chosen.parent), chosen.name
         data = dump_bytes(self.machine.read_memory(first, end - first), binary)
         try:
             write_file(path, data)

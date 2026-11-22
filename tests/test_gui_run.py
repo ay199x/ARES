@@ -1003,8 +1003,8 @@ def test_assemble_upon_opening_turned_off_during_the_run_assembles_nothing(app, 
 
 
 def test_assemble_upon_opening_takes_the_tab_on_top_if_the_last_file_fails(app, tmp_path,
-                                                                           monkeypatch):
-    monkeypatch.setattr(app_module.messagebox, "showerror", lambda *args, **options: None)
+                                                                           message_boxes):
+    message_boxes.answer("ok")                  # Cannot open file
     app.settings.assemble_on_open = True
     runner = loaded(app, tmp_path, FOREVER)
     good = tmp_path / "good.s"

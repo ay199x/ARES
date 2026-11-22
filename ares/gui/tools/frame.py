@@ -9,7 +9,9 @@ Control with the buttons Connect to ARM (Disconnect from ARM while
 connected), Reset and Close. A tool observes the program only while it is
 connected; closing its window disconnects it. It opens centred over the main
 window, and a dialog it opens (such as Font...) centred over it
-(place_over()).
+(place_over()). It opens at its usual size, the size its contents ask for; it
+can be made larger or maximized, its main part taking the room, but not smaller
+than min_size(); its size is not kept for the next time it opens.
 
 A ToolModel is what a tool observes and the numbers it keeps, without a
 window: the window shows them, tests and the benchmark use the model alone.
@@ -18,6 +20,7 @@ unloads (machine_changed) and has them refresh after every slice of a run,
 Step, Backstep, Reset and register change.
 """
 
+import ctypes
 import re
 import tkinter as tk
 from tkinter import font as tkfont
@@ -45,6 +48,11 @@ GAP = 5                         # between its heading, controls and Tool Control
 BAR_WIDTH = 148                 # a percentage bar, in design pixels
 BAR_HEIGHT = 21
 WIDEST = "100.0%"               # the widest text a percentage bar shows
+SETTLE_MS = 150                 # a window's size counts as settled after this long unchanged
+GWL_STYLE = -16                 # Windows: a window's style, and the box that maximizes it
+WS_MAXIMIZEBOX = 0x00010000
+SWP_FRAME_ONLY = 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020     # no size, move, order,
+                                                                # activation: frame changed
 
 
 class ToolModel:
@@ -119,7 +127,7 @@ class ToolWindow:
         window.withdraw()
         window.title(self.NAME)
         window.transient(app.root)
-        window.resizable(False, False)
+        window.resizable(True, True)
         gap = px(window, GAP)
         content = ttk.Frame(window, padding=px(window, MARGIN))
         content.pack(fill="both", expand=True)
@@ -153,11 +161,23 @@ class ToolWindow:
         window.protocol("WM_DELETE_WINDOW", self.close)
         self.show()
         place_over(window, app.root)
+        window.minsize(*self.min_size())
+        window.bind("<Map>", self._mapped, add="+")
         window.deiconify()
         self.connect_button.focus_set()
 
     def build(self, body):
         """Make the tool's controls in body."""
+
+    def min_size(self):
+        """The smallest inside of the window, (width, height) in pixels, at which everything
+        in it is still shown and readable: by default the size it opens at, which its
+        contents ask for. A tool whose main part can shrink gives a smaller size."""
+        return self.window.winfo_reqwidth(), self.window.winfo_reqheight()
+
+    def _mapped(self, event):
+        if event.widget is self.window:
+            give_maximize_box(self.window)
 
     def show(self):
         """Show the model's numbers."""
@@ -211,6 +231,56 @@ class ToolWindow:
         """Show what the program did since the last refresh."""
         if self.model.update():
             self.show()
+
+
+# Resizing ---------------------------------------------------------------------------------
+
+def give_maximize_box(window):
+    """Give a tool's window on the screen the box that maximizes it.
+
+    Windows draws no maximize box on a window that belongs to another one
+    (Tk's transient window), though it can be maximized; the box is added to
+    the frame Tk made for it. Nothing happens on other systems or before the
+    window has its frame (it is mapped).
+    """
+    if window.tk.call("tk", "windowingsystem") != "win32":
+        return
+    try:
+        frame = int(window.wm_frame(), 16)
+        user32 = ctypes.windll.user32
+        style = user32.GetWindowLongW(frame, GWL_STYLE)
+        if not style & WS_MAXIMIZEBOX:
+            user32.SetWindowLongW(frame, GWL_STYLE, style | WS_MAXIMIZEBOX)
+            user32.SetWindowPos(frame, 0, 0, 0, 0, 0, SWP_FRAME_ONLY)
+    except (tk.TclError, ValueError, OSError, AttributeError):
+        pass                            # no frame yet, or no Windows: the window stays as it is
+
+
+def when_settled(widget, callback, delay=SETTLE_MS):
+    """Call callback() once widget's size has stayed the same for delay milliseconds after a
+    change. Dragging a window's edge changes its size at every pixel; drawing a picture again
+    for each would make the window slow. A wait still running when widget is destroyed ends
+    with it. Returns the <Configure> binding's id."""
+    job, size = [None], [None]
+
+    def configured(event):
+        if event.widget is not widget or (event.width, event.height) == size[0]:
+            return
+        size[0] = (event.width, event.height)
+        if job[0] is not None:
+            widget.after_cancel(job[0])
+        job[0] = widget.after(delay, settled)
+
+    def settled():
+        job[0] = None
+        callback()
+
+    def destroyed(event):
+        if event.widget is widget and job[0] is not None:
+            widget.after_cancel(job[0])
+            job[0] = None
+    widget.bind("<Destroy>", destroyed, add="+")
+    return widget.bind("<Configure>", configured, add="+")
 
 
 # Where the windows open ---------------------------------------------------------------------

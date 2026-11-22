@@ -2,6 +2,7 @@
 # Copyright (c) 2026 The ARES Project
 """Shared test helpers: build and run programs from source text."""
 
+import collections
 import faulthandler
 import os
 import re
@@ -210,6 +211,15 @@ def no_window_on_the_screen():
 
 
 @pytest.fixture(autouse=True)
+def roomy_screen_for_windows_inside_blocks(monkeypatch):
+    """A window inside an X-Ray block opens at the tool's zoom unless the work area of the screen
+    is too small for it there; the tests do not depend on the screen they run on (a test of the
+    smaller zoom gives its own work area)."""
+    from ares.gui.tools import xray_inside
+    monkeypatch.setattr(xray_inside, "screen_area", lambda *args: (0, 0, 100000, 100000))
+
+
+@pytest.fixture(autouse=True)
 def hidden_windows():
     """The Screen of the test: what its code asked the window system for.
 
@@ -226,6 +236,67 @@ def hidden_windows():
         except tkinter.TclError:
             continue                    # already destroyed
         assert not mapped, "the test showed a window"
+
+
+Box = collections.namedtuple("Box", "kind title text buttons default owned")
+
+
+class MessageBoxes:
+    """ARES's message boxes in a test (ares.gui.msgbox.show): none is shown and none waits.
+
+    Each box is recorded in shown, as a Box, and the window it would go over
+    in masters; it gets the next answer that answer() prepared: a button's name
+    ("yes", "no", "cancel", "ok"), or a function that takes the Box and gives
+    one. Once those are used up, responder, when set, answers every further
+    box the same way. A box without an answer fails the test, and so does an
+    answer the box has no button for. real_show is the show() that waits, for
+    the box's own tests.
+    """
+
+    def __init__(self, real_show=None):
+        self.shown = []
+        self.masters = []
+        self.answers = []
+        self.responder = None
+        self.real_show = real_show
+
+    def answer(self, *answers):
+        self.answers.extend(answers)
+
+    def show(self, master, kind, title, text, buttons=("ok",), default=0, owned=True):
+        box = Box(kind, title, text, tuple(buttons), default, owned)
+        self.shown.append(box)
+        self.masters.append(master)
+        if self.answers:
+            reply = self.answers.pop(0)
+        elif self.responder is not None:
+            reply = self.responder
+        else:
+            raise AssertionError(f"a message box would wait for an answer: {title!r}: {text!r}")
+        reply = reply(box) if callable(reply) else reply
+        assert reply in box.buttons, f"{title!r} has no button {reply!r}"
+        return reply
+
+
+def _no_message_box(master, kind, title, text, *args, **options):
+    raise AssertionError(f"a message box would wait outside a test: {title!r}: {text!r}")
+
+
+_REAL_SHOW = []                 # ares.gui.msgbox.show itself, for the box's own tests
+
+
+@pytest.fixture(autouse=True)
+def message_boxes():
+    """The MessageBoxes of the test, in place of ares.gui.msgbox.show. Like _hide_every_window,
+    this is a plain assignment, not monkeypatch: monkeypatch.undo() in a test would bring back
+    the box that waits."""
+    from ares.gui import msgbox
+    if not _REAL_SHOW:
+        _REAL_SHOW.append(msgbox.show)
+    boxes = MessageBoxes(_REAL_SHOW[0])
+    msgbox.show = boxes.show
+    yield boxes
+    msgbox.show = _no_message_box
 
 
 def press_key(widget, sequence, virtual=None):

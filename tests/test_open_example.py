@@ -11,6 +11,7 @@ from test_gui_assemble import assemble, wait_for_assembly
 from test_gui_clicks import click_item, click_title, closed
 from test_gui_editing import PROGRAM, ROW, double_click, type_into
 from test_gui_editor import answers  # noqa: F401  (a fixture)
+from test_gui_editor import save_question
 from test_gui_run import COUNT, FOREVER, loaded, run_until
 from test_menubar import bar  # noqa: F401  (a fixture)
 from test_menubar import FILE, editor_text, entry_index, focus_on, key
@@ -252,7 +253,7 @@ def test_opening_it_does_not_change_the_last_folder(app, tmp_path):
 def test_closing_it_asks_whether_to_save_as_any_unsaved_file(app, example, answers):
     answers["save_changes"].append(None)
     app.run("close")
-    assert answers["asked"] == [("save_changes", "Save changes to hello.s?")]
+    assert answers["asked"] == [("save_changes", save_question("hello.s"))]
     assert app.editor.current is example
     answers["save_changes"].append(False)
     app.run("close")
@@ -268,7 +269,7 @@ def test_closing_without_touching_it_asks_all_the_same(app, example, answers):
 def test_exit_asks_too(app, example, answers):
     answers["save_changes"].append(None)
     app.run("exit")
-    assert answers["asked"] == [("save_changes", "Save changes to hello.s?")]
+    assert answers["asked"] == [("save_changes", save_question("hello.s"))]
 
 
 def test_the_same_example_twice_gives_two_tabs(app, example):

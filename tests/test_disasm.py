@@ -8,7 +8,8 @@ import time
 
 import pytest
 
-from ares.disasm import TextRow, basic, format_address, text_rows
+from ares.disasm import (SourceColumn, TextRow, basic, format_address, text_rows,
+                         written)
 from conftest import ROOT
 
 # (source instruction, Basic column) in the order they are assembled from 0.
@@ -295,6 +296,36 @@ def test_second_word_of_adrl_has_no_source(build):
         ("B #8", 3, "3:         B       ."),
         (".word 0x00000005", None, ""),
     ]
+
+
+WRITTEN = """\
+        .global _start
+_start: MOV     R0, #20         @ twenty
+loop:   SUBS    R0, R0, #1      // count down
+        BNE     loop
+        MOV  R1, /* one */ #1
+        ADRL    R2, far ; MOV R3, #3
+        B       .
+far:    .word   5
+"""
+
+
+def test_written_is_the_statement_as_typed(build):
+    program = build(WRITTEN)
+    sources = SourceColumn(program, WRITTEN)
+    texts = [written(program, sources, address) for address in program.code_addresses()]
+    assert texts == ["MOV R0, #20", "SUBS R0, R0, #1", "BNE loop", "MOV R1, #1",
+                     "ADRL R2, far ; MOV R3, #3", None, None, "B ."]   # as the Source column
+
+
+def test_written_is_none_without_a_source_line(build):
+    program = build(WRITTEN)
+    sources = SourceColumn(program, WRITTEN)
+    pool = max(program.code_addresses()) + 4            # far: .word 5
+    assert written(program, sources, pool) is None
+    assert written(program, None, 0) is None
+    assert written(program, SourceColumn(program, ""), 0) is None
+    assert sources.written(None) == "" and sources.written(99) == ""
 
 
 @pytest.mark.parametrize("source", [POOL_SOURCE, POOL_AFTER_ITS_LOAD, DOUBLE_POOL,

@@ -6,7 +6,8 @@ usage: python tools/check_package.py
 
 A package takes no script from outside. So a second package is made with the same options, with
 tools/package_entry.py as its start: it runs the programs of tests/programs and examples/ with
-ARES's own commands, opens every tool, and its report is compared with the expected output.
+ARES's own commands, opens every tool, plays a film of ARM X-Ray, runs the Pipeline Simulator and
+shows a message box, and its report is compared with the expected output.
 Then each real package is unpacked and started with hello.s on its command line, assembling it
 on opening: it must still be running after some seconds. Pictures of the screen are left in
 build/check/pictures. Each run sees a bare environment and settings of its own.
@@ -45,6 +46,8 @@ ALIVE = 12                      # seconds a real package must keep running
 KEYS_EXAMPLE = "keyboard_echo.s"    # reads the keys one by one: no line to type
 # Where the mouse goes in the window, at 96 dots per inch: the title File, then Open Example.
 MOUSE_STEPS = (("file-menu", 18, 12, True), ("submenu", 60, 69, False))
+# What the package must do besides running the programs (tools/package_entry.py tries each).
+WORKING = ("ARM X-Ray", "Pipeline Simulator", "message box")
 
 
 def example_table():
@@ -124,6 +127,10 @@ def report_problems(report, programs):
     for name, size in report.get("documents", {}).items():
         if size < 500:
             problems.append(f"{name}: only {size} characters")
+    for name in WORKING:
+        state = report.get("working", {}).get(name, "not tried")
+        if state != "ok":
+            problems.append(f"{name}: {state}")
     return problems
 
 
@@ -228,8 +235,10 @@ def run_list(name, program):
     report = json.loads(report_file.read_text(encoding="utf-8"))
     problems = report_problems(report, programs)
     good = len(programs) - sum(1 for line in problems if line.startswith(("programs/", "examples/")))
+    working = ", ".join(f"{name} {'ok' if state == 'ok' else 'FAILED'}"
+                        for name, state in report.get("working", {}).items())
     print(f"  {good} of {len(programs)} programs as expected; {len(report['tools'])} tools; "
-          f"toolchain {report.get('toolchain')}")
+          f"{working}; toolchain {report.get('toolchain')}")
     return [f"{name}: {line}" for line in problems]
 
 

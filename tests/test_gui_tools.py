@@ -3,6 +3,7 @@
 """The Tools menu, the window every tool has, and the Dynamic Instruction Counter's window."""
 
 import importlib.util
+import tkinter as tk
 from tkinter import ttk
 
 import pytest
@@ -100,13 +101,75 @@ def test_the_counter_opens_from_the_menu(app, hidden_windows):
 
 
 @pytest.mark.parametrize("tool", tools.TOOLS, ids=lambda tool: tool.command)
-def test_every_tool_window_is_transient_and_not_resizable(app, tool):
-    """Each tool has its own window in front of the main one, of a size the user cannot
-    change."""
+def test_every_tool_window_is_transient_resizable_and_no_smaller_than_its_least(app, tool):
+    """Each tool has its own window in front of the main one; it can be resized, but not made
+    smaller than its least size, which is at most the size it opens at."""
     app.run(tool.command)
-    window = app.tool_windows[tool.command].window
+    tool_window = app.tool_windows[tool.command]
+    window = tool_window.window
     assert str(window.wm_transient()) == str(app.root)
-    assert window.resizable() == (False, False)
+    assert window.resizable() == (True, True)
+    least = tuple(int(n) for n in window.wm_minsize())
+    assert least == tool_window.min_size()
+    assert 0 < least[0] <= window.winfo_reqwidth() and 0 < least[1] <= window.winfo_reqheight()
+
+
+def test_the_maximize_box_is_added_to_the_window_s_frame(make_root, monkeypatch):
+    calls = []
+
+    class User32:
+        @staticmethod
+        def GetWindowLongW(frame, index):
+            calls.append(("get", frame, index))
+            return 0x00C80000                   # a caption and a system menu: no maximize box
+
+        @staticmethod
+        def SetWindowLongW(frame, index, style):
+            calls.append(("set", frame, index, style))
+
+        @staticmethod
+        def SetWindowPos(frame, after, x, y, width, height, flags):
+            calls.append(("pos", frame, flags))
+
+    root = make_root()
+    window = tk.Toplevel(root)
+    monkeypatch.setattr(frame.ctypes, "windll", type("WinDLL", (), {"user32": User32}),
+                        raising=False)
+    monkeypatch.setattr(window, "wm_frame", lambda: "0x1234")
+    frame.give_maximize_box(window)
+    assert calls == [("get", 0x1234, frame.GWL_STYLE),
+                     ("set", 0x1234, frame.GWL_STYLE, 0x00C80000 | frame.WS_MAXIMIZEBOX),
+                     ("pos", 0x1234, frame.SWP_FRAME_ONLY)]
+
+
+def test_a_size_counts_once_it_has_settled(make_root):
+    root = make_root()
+    widget = tk.Frame(root)
+    widget.winfo_id()                           # the widget's window, which events need
+    seen = []
+    frame.when_settled(widget, lambda: seen.append("drawn"), delay=10)
+    for width in range(100, 140, 4):            # a drag of the edge: a size at every step
+        widget.event_generate("<Configure>", width=width, height=50, when="now")
+    assert seen == []
+    root.after(60, root.quit)
+    root.mainloop()
+    assert seen == ["drawn"]
+
+
+def test_a_size_still_settling_when_its_widget_is_destroyed_does_nothing(make_root):
+    root = make_root()
+    errors = []
+    root.report_callback_exception = lambda *error: errors.append(error)
+    root.tk.createcommand("bgerror", lambda *message: errors.append(message))
+    widget = tk.Frame(root)
+    widget.winfo_id()
+    seen = []
+    frame.when_settled(widget, lambda: seen.append("drawn"), delay=10)
+    widget.event_generate("<Configure>", width=120, height=50, when="now")
+    widget.destroy()                            # closed before the size settled
+    root.after(60, root.quit)
+    root.mainloop()
+    assert seen == [] and errors == []
 
 
 def test_one_window_per_tool(app, hidden_windows):
@@ -407,3 +470,12 @@ def test_refreshing_shows_only_what_changed(app, tmp_path):
     app.run("step")
     app.run("reset")                            # nothing ran: nothing to show again
     assert len(shows) == 1
+
+
+def test_the_counter_window_lays_out_without_a_clash_at_its_least_and_a_larger_size(app):
+    from window_layout import at_size, clashes
+    window = counter(app)
+    least = window.min_size()
+    for width, height in (least, (least[0] + 300, least[1] + 200)):
+        part = at_size(window.window, width, height)
+        assert clashes(part) == [], (width, height)

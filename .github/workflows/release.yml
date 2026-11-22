@@ -1,26 +1,25 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (c) 2026 The ARES Project
-# Runs the tests and builds the five packages of a release on clean machines, and tries them there.
-# It runs only when started by hand, and keeps them as the run's files. Started on a tag such as
-# v1.0 with publish ticked, it also publishes them, with the source of the GNU assembler and linker
-# and of Unicorn, as a release.
+# Builds the five packages of ARES on clean machines and starts each once there. Started by a
+# pushed tag such as v1.1, it then publishes them as that tag's release, with the source of the
+# GNU assembler and linker and of Unicorn. Started by hand, it keeps them as the run's files.
+# The tests are a workflow of their own (tests.yml), started by hand.
 name: Release
 
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish a release (on a tag such as v1.0)
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
-jobs:
-  tests:
-    uses: ./.github/workflows/tests.yml
+# A tag pushed again stops the run of its earlier commit, which must not publish.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
+jobs:
   build:
     strategy:
       fail-fast: false
@@ -32,7 +31,7 @@ jobs:
           - { name: Linux, os: ubuntu-22.04, python: "3.12", tag: linux-x86_64, files: dist/ARES-linux-x86_64.tar.gz }
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -41,13 +40,19 @@ jobs:
       - name: Linux needs a display and the fonts for the windows
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y xvfb openbox xdotool fonts-liberation
+      - uses: actions/cache@v4
+        with:
+          path: vendor/${{ matrix.tag }}
+          key: toolchain-${{ matrix.tag }}-${{ hashFiles('tools/toolchain.json') }}
       - run: python -m pip install -r requirements-dev.txt
       - run: python tools/build.py --skip-tests
-      - name: Try the packages
+      - name: Start the packages once
         if: runner.os != 'Linux'
+        timeout-minutes: 20
         run: python tools/check_package.py
-      - name: Try the packages, on a virtual display
+      - name: Start the packages once, on a virtual display
         if: runner.os == 'Linux'
+        timeout-minutes: 20
         run: >-
           xvfb-run -a -s "-screen 0 1600x1000x24 -dpi 96" sh -c
           'openbox & sleep 2; python tools/check_package.py'
@@ -72,8 +77,8 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: inputs.publish && startsWith(github.ref, 'refs/tags/v')
-    needs: [tests, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -89,10 +94,47 @@ jobs:
           for key in source engine_source; do
             url=$(python3 -c "import json; print(json.load(open('tools/toolchain.json'))['$key'][\"url\"])")
             sum=$(python3 -c "import json; print(json.load(open('tools/toolchain.json'))['$key'][\"sha256\"])")
-            curl -fsSL -o "out/$(basename "$url")" "$url"
+            curl -fsSL --retry 3 -o "out/$(basename "$url")" "$url"
             echo "$sum  out/$(basename "$url")" | sha256sum --check
           done
+      - name: Check that the release has its seven files
+        run: |
+          ls -l out
+          for file in ARES.exe ARES-windows.zip ARES-macos-arm64.zip ARES-macos-x86_64.zip \
+                      ARES-linux-x86_64.tar.gz; do
+            test -s "out/$file" || { echo "missing: $file"; exit 1; }
+          done
+          test "$(ls out | wc -l)" -eq 7
+      - name: Write the release's text
+        run: |
+          cat > notes.md <<'EOF'
+          ARES, the ARM Educational Simulator, is a desktop program for writing, assembling, running and debugging ARMv7 assembly language. Programs written for CPUlator's ARMv7 DE1-SoC system assemble in it, with their instructions and registers in capitals.
+
+          ## What is new in 1.1
+          - The Pipeline Simulator, a tenth tool: a five-stage pipeline with its reservation table, stalls, data forwarding and branch prediction, and the NOPs a pipeline without stalls would need.
+          - A new ARM X-Ray: the film of each instruction, with buttons to play, pause, step forward and back, and skip to the end; a click on a block opens the window inside it; PUSH, POP, LDM, STM, MUL and nearly every other instruction now animate.
+          - ARES's own message boxes, and tool windows that can be resized.
+          - Packages for Intel Macs and for Linux.
+          - A new example, pipeline_tour.s, and a longer xray_tour.s.
+
+          ## Downloads
+          - `ARES.exe`: Windows 10 or 11, 64-bit, one file to run.
+          - `ARES-windows.zip`: the same as a folder, with the example programs beside it.
+          - `ARES-macos-arm64.zip`: macOS 12 or newer, Apple Silicon.
+          - `ARES-macos-x86_64.zip`: macOS 12 or newer, Intel.
+          - `ARES-linux-x86_64.tar.gz`: 64-bit Linux with a desktop, such as Ubuntu 22.04 or newer.
+
+          ARES is not signed, so the first time you start it, your system asks:
+          - **Windows:** in the SmartScreen message, choose **More info > Run anyway**.
+          - **macOS:** unzip the file and open ARES once, then choose **Open Anyway** in **System Settings > Privacy & Security** (on macOS 12: **System Preferences > Security & Privacy**).
+          - **Linux:** unpack the file with `tar -xzf ARES-linux-x86_64.tar.gz`, then start `ARES/ARES`.
+
+          ## Source
+          ARES is licensed under GPL-2.0-or-later. The source of ARES is this repository. `arm-gnu-toolchain-src-snapshot-14.2.rel1.tar.xz` and `unicorn-2.1.4.tar.gz` are the exact sources of the GNU assembler and linker and of Unicorn in these packages.
+          EOF
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" out/* --title "ARES ${GITHUB_REF_NAME#v}" --generate-notes
+        run: >-
+          gh release create "$GITHUB_REF_NAME" out/* --verify-tag
+          --title "ARES ${GITHUB_REF_NAME#v}" --notes-file notes.md

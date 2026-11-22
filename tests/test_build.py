@@ -96,7 +96,7 @@ def test_the_windows_version_has_four_numbers():
 def test_the_version_resource_is_a_valid_expression_with_the_version():
     text = build.version_resource()
     compile(text, "version", "eval")
-    assert "ARES 1.0" in text if __version__ == "1.0" else True
+    assert f"'ARES {__version__}'" in text and f"'FileVersion', '{__version__}'" in text
     for words in ("ARM Educational Simulator", "The ARES Project", "ARES.exe"):
         assert words in text
 
@@ -106,7 +106,9 @@ def test_pyinstaller_reads_the_version_resource(tmp_path):
     path = tmp_path / "version.txt"
     path.write_text(build.version_resource(), encoding="utf-8")
     info = versioninfo.load_version_info_from_text_file(str(path))
-    assert info.ffi.fileVersionMS == 1 << 16 and info.ffi.fileVersionLS == 0
+    major, minor, patch, number = build.version_numbers()
+    assert info.ffi.fileVersionMS == major << 16 | minor
+    assert info.ffi.fileVersionLS == patch << 16 | number
 
 
 def test_the_bundle_says_its_version_and_keeps_what_was_there():
@@ -439,18 +441,43 @@ def test_a_release_carries_the_source_of_the_gnu_tools_and_of_unicorn():
     assert "sha256sum --check" in text
 
 
-def test_only_a_run_started_by_hand_on_a_tag_publishes():
-    text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
-    assert "inputs.publish && startsWith(github.ref, 'refs/tags/v')" in text
-    assert "needs: [tests, build]" in text
-
-
-@pytest.mark.parametrize("name", ["tests.yml", "release.yml"])
-def test_a_workflow_runs_only_when_started_by_hand(name):
+def triggers(name):
     text = (WORKFLOWS / name).read_text(encoding="utf-8")
-    triggers = text[text.index("on:\n"):text.index("permissions:")]
-    assert "workflow_dispatch:" in triggers
-    assert "push:" not in triggers and "pull_request:" not in triggers and "schedule:" not in triggers
+    return text[text.index("on:\n"):text.index("permissions:")]
+
+
+def test_only_a_pushed_tag_publishes_once_every_package_is_built():
+    text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
+    publish = text[text.index("  publish:"):]
+    assert "if: startsWith(github.ref, 'refs/tags/v')" in publish
+    assert "needs: build\n" in publish
+    assert "--verify-tag" in publish and "--notes-file notes.md" in publish
+
+
+def test_the_release_starts_on_a_pushed_tag_or_by_hand_and_waits_for_no_tests():
+    assert triggers("release.yml") == 'on:\n  push:\n    tags: ["v*"]\n  workflow_dispatch:\n\n'
+    jobs = (WORKFLOWS / "release.yml").read_text(encoding="utf-8").split("\njobs:\n")[1]
+    assert "tests.yml" not in jobs and "pytest" not in jobs
+
+
+def test_a_tag_pushed_again_stops_the_run_of_its_earlier_commit():
+    text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
+    assert "group: release-${{ github.ref }}" in text and "cancel-in-progress: true" in text
+
+
+def test_the_tests_run_only_when_started_by_hand():
+    assert triggers("tests.yml") == "on:\n  workflow_dispatch:\n\n"
+
+
+def test_the_release_text_names_each_package_and_how_to_start_it():
+    text = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
+    notes = text[text.index("cat > notes.md <<'EOF'"):text.index("          EOF\n")]
+    for name in ("ARES.exe", *build.ARCHIVES.values()):
+        assert f"`{name}`" in notes
+    for system in ("**Windows:**", "**macOS:**", "**Linux:**"):
+        assert system in notes
+    for key in ("source", "engine_source"):
+        assert f"`{TOOLCHAIN[key]['url'].rsplit('/', 1)[1]}`" in notes
 
 
 def test_the_packages_are_tried_where_they_are_built():

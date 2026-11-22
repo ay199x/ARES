@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ARES Help - Release history</title>
-<meta name="description" content="The release history of ARES: what release 1.0 contains.">
+<meta name="description" content="The release history of ARES: what each release contains.">
 <link rel="canonical" href="https://ay199x.github.io/ARES/help/history.html">
 <link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="192x192" href="../images/icon-192.png">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ARES">
 <meta property="og:title" content="ARES Help - Release history">
-<meta property="og:description" content="The release history of ARES: what release 1.0 contains.">
+<meta property="og:description" content="The release history of ARES: what each release contains.">
 <meta property="og:url" content="https://ay199x.github.io/ARES/help/history.html">
 <meta property="og:image" content="https://ay199x.github.io/ARES/images/preview.png">
 <meta property="og:image:width" content="1200">
@@ -37,12 +37,23 @@
 </nav>
 <header class="title">
 <p class="name">ARES - ARM Educational Simulator</p>
-<p>Release 1.0</p>
+<p>Release 1.1</p>
 <p>November 2026</p>
 <h1>Release history</h1>
 </header>
 <main>
-<p>ARES 1.0 was released in November 2026. It is the first release. First used in the EEL 3801 Computer Organization labs at the University of Central Florida. It contains:</p>
+<h2>Release 1.1</h2>
+<p>ARES 1.1 was released in November 2026. It adds:</p>
+<ul>
+<li>The Pipeline Simulator, a tenth tool: the program in a five-stage pipeline, with its reservation table, stalls and Flush rows, data forwarding, the stages that decide branches and jumps, branch prediction, the CPI, and the NOPs a pipeline without stalls would need.</li>
+<li>A new ARM X-Ray: the film of each instruction, with buttons to play, pause, step forward and back and skip to the end; a click on a block opens the window inside it; PUSH, POP, LDM, STM, MUL and nearly every other instruction animate.</li>
+<li>ARES's own message boxes, and tool windows that can be resized.</li>
+<li>A new example, <code>pipeline_tour.s</code>, and a longer <code>xray_tour.s</code>.</li>
+<li>Packages on GitHub for Windows, macOS (Apple Silicon and Intel) and Linux: <code>ARES.exe</code>, <code>ARES-windows.zip</code>, <code>ARES-macos-arm64.zip</code>, <code>ARES-macos-x86_64.zip</code>, <code>ARES-linux-x86_64.tar.gz</code>.</li>
+<li>The GNU assembler and linker of the Arm GNU Toolchain 14.2.Rel1, the processor and memory of Unicorn 2.1.4, and the disassembler Capstone 5.0.9.</li>
+</ul>
+<h2>Release 1.0</h2>
+<p>ARES 1.0 was released in November 2026. It was the first release. First used in the EEL 3801 Computer Organization labs at the University of Central Florida. It contained:</p>
 <ul>
 <li>The editor, with several open files, syntax colours, find and replace, and the capital-letters rule (Edit &gt; Capitalize Instructions).</li>
 <li>The GNU assembler and linker of the Arm GNU Toolchain 14.2.Rel1, the processor and memory of Unicorn 2.1.4, and the disassembler Capstone 5.0.9.</li>
